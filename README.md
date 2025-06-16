@@ -1,2 +1,1 @@
-# cloud
-CivicAlert Cloud Software Repository
+# CivicAlert Cloud Software Repository

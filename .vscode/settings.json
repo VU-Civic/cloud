@@ -1,0 +1,10 @@
+{
+  "editor.detectIndentation": false,
+  "editor.indentSize": 2,
+  "editor.insertSpaces": true,
+  "editor.tabSize": 2,
+  "rust-analyzer.linkedProjects": [
+    "./Cargo.toml"
+  ],
+  "rust-analyzer.showUnlinkedFileNotification": false
+}

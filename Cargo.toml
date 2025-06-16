@@ -1,0 +1,36 @@
+[package]
+edition = "2024"
+name = "civicalert-cloud"
+version = "1.0.0"
+authors = ["Will Hedgecock <will.hedgecock@hedgetech.net>"]
+license = "MIT"
+description = "CivicAlert sensor fusion cloud application"
+readme = "README.md"
+homepage = "https://github.com/vu-civic/cloud"
+repository = "https://github.com/vu-civic/cloud"
+keywords = ["civicalert", "agl", "gsl", "civic", "gunshot"]
+categories = ["mathematics", "multimedia::audio", "science"]
+publish = false
+
+[dependencies]
+aws-config = { version = "1", features = ["behavior-version-latest"] }
+aws-credential-types = { version = "1" }
+aws-sdk-dynamodb = { version = "1" }
+aws-sdk-s3 = { version = "1" }
+rumqttc = { version = "0.24" }
+tokio = { version = "1", features = ["full"] }
+
+[features]
+default = []
+
+[profile.release]
+codegen-units = 1
+debug = false
+debug-assertions = false
+incremental = false
+lto = true
+opt-level = 3
+overflow-checks = false
+panic = "abort"
+rpath = false
+strip = "symbols"
