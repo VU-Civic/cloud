@@ -1,4 +1,5 @@
-pub mod aws_config;
-pub mod aws_db;
-pub mod aws_mqtt;
-pub mod aws_s3;
+pub mod config;
+pub mod db;
+pub mod mqtt;
+pub mod s3;
+pub mod secrets;

@@ -17,7 +17,10 @@ aws-config = { version = "1", features = ["behavior-version-latest"] }
 aws-credential-types = { version = "1" }
 aws-sdk-dynamodb = { version = "1" }
 aws-sdk-s3 = { version = "1" }
+aws-sdk-secretsmanager = { version = "1" }
+aws-sdk-ssm = { version = "1" }
 rumqttc = { version = "0.24" }
+serde_json = { version = "1.0" }
 tokio = { version = "1", features = ["full"] }
 
 [features]
