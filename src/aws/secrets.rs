@@ -21,63 +21,64 @@ impl SecretManagerClient {
       .secret_id(secret_name)
       .send()
       .await
-      .map_err(|e| format!("Failed to get secret value: {e}"))?;
-    let secret_string = response.secret_string().ok_or("Secret string is empty or not found")?;
-    serde_json::from_str(secret_string).map_err(|e| format!("Failed to parse secret JSON: {e}"))
+      .map_err(|e| format!("AWS SecretManager: GetSecret failed for key '{secret_name}' with error: {e}"))?;
+    match response.secret_string() {
+      Some(secret_string) => serde_json::from_str(secret_string)
+        .map_err(|_| format!("AWS SecretManager: Failed to parse secret for key '{secret_name}'")),
+      None => Err(format!(
+        "AWS SecretManager: Secret string for key '{secret_name}' is empty or missing"
+      )),
+    }
   }
 
   pub fn extract_secret_value(&self, secret: &Value, key: &str) -> Result<String, String> {
     secret
       .get(key)
-      .and_then(|v| v.as_str())
+      .ok_or_else(|| format!("AWS SecretManager: Key '{key}' not found in secret"))?
+      .as_str()
       .map(String::from)
-      .ok_or_else(|| format!("Key '{key}' not found in secret"))
+      .ok_or_else(|| format!("AWS SecretManager: Secret for key '{key}' is not of the expected type"))
   }
 }
 
 #[cfg(test)]
 mod tests {
-  use crate::{aws, constants};
+  use crate::{aws, params};
 
   #[tokio::test]
   async fn test_secrets() {
-    let config = aws::config::create().await.expect("Failed to create AWS config");
-    let secret_manager = aws::secrets::SecretManagerClient::new(&config);
+    let secret_manager = aws::secrets::SecretManagerClient::new(&params::AWS_SDK_CONFIG);
     let secret = secret_manager
-      .get_secret(constants::MQTT_CREDENTIALS_KEY.lock().unwrap().as_str())
+      .get_secret(params::MQTT_CREDENTIALS_KEY.as_str())
       .await
       .expect("Failed to get secret");
     assert!(
-      secret.get(constants::MQTT_CA_KEY.lock().unwrap().as_str()).is_some(),
+      secret.get(params::MQTT_CA_KEY.as_str()).is_some(),
       "CA certificate not found in secret"
     );
     assert!(
-      secret
-        .get(constants::MQTT_CLIENT_CERT_KEY.lock().unwrap().as_str())
-        .is_some(),
+      secret.get(params::MQTT_CLIENT_CERT_KEY.as_str()).is_some(),
       "Client certificate not found in secret"
     );
     assert!(
-      secret
-        .get(constants::MQTT_CLIENT_KEY_KEY.lock().unwrap().as_str())
-        .is_some(),
+      secret.get(params::MQTT_CLIENT_KEY_KEY.as_str()).is_some(),
       "Client key not found in secret"
     );
     assert!(
       secret_manager
-        .extract_secret_value(&secret, constants::MQTT_CA_KEY.lock().unwrap().as_str())
+        .extract_secret_value(&secret, params::MQTT_CA_KEY.as_str())
         .is_ok(),
       "Failed to extract CA certificate"
     );
     assert!(
       secret_manager
-        .extract_secret_value(&secret, constants::MQTT_CLIENT_CERT_KEY.lock().unwrap().as_str())
+        .extract_secret_value(&secret, params::MQTT_CLIENT_CERT_KEY.as_str())
         .is_ok(),
       "Failed to extract client certificate"
     );
     assert!(
       secret_manager
-        .extract_secret_value(&secret, constants::MQTT_CLIENT_KEY_KEY.lock().unwrap().as_str())
+        .extract_secret_value(&secret, params::MQTT_CLIENT_KEY_KEY.as_str())
         .is_ok(),
       "Failed to extract client key"
     );

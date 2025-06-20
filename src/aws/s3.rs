@@ -30,7 +30,9 @@ impl S3Client {
       .body(body.into())
       .send()
       .await
-      .map_err(|e| e.to_string())?;
+      .map_err(|e| {
+        format!("AWS S3: PutObject failed on Bucket '{bucket_name}' for file '{file_name}' with error: {e}")
+      })?;
     Ok(())
   }
 
@@ -42,8 +44,14 @@ impl S3Client {
       .key(file_name)
       .send()
       .await
-      .map_err(|e| e.to_string())?;
-    let body = resp.body.collect().await.map_err(|e| e.to_string())?;
+      .map_err(|e| {
+        format!("AWS S3: GetObject failed on Bucket '{bucket_name}' for file '{file_name}' with error: {e}")
+      })?;
+    let body = resp
+      .body
+      .collect()
+      .await
+      .map_err(|e| format!("AWS S3: GetObject byte retrieval failed with error: {e}"))?;
     Ok(body.into_bytes().to_vec())
   }
 
@@ -55,7 +63,9 @@ impl S3Client {
       .key(file_name)
       .send()
       .await
-      .map_err(|e| e.to_string())?;
+      .map_err(|e| {
+        format!("AWS S3: DeleteObject failed on Bucket '{bucket_name}' for file '{file_name}' with error: {e}")
+      })?;
     Ok(())
   }
 
@@ -67,7 +77,7 @@ impl S3Client {
       .bucket(bucket_name)
       .send()
       .await
-      .map_err(|e| e.to_string())?;
+      .map_err(|e| format!("AWS S3: ListObjects failed on Bucket '{bucket_name}' with error: {e}"))?;
     for object in resp.contents() {
       if let Some(name) = object.key() {
         objects.push(name.to_string());
@@ -79,16 +89,16 @@ impl S3Client {
 
 #[cfg(test)]
 mod tests {
-  use crate::{aws, constants};
+  use crate::{aws, params};
 
   #[tokio::test]
   async fn test_s3() {
-    let config = aws::config::create().await.expect("Failed to create AWS config");
-    let s3 = aws::s3::S3Client::new(&config);
+    // Initialize an S3 client
+    let s3 = aws::s3::S3Client::new(&params::AWS_SDK_CONFIG);
 
     // Create new object
     s3.put_object(
-      constants::S3_EVIDENCE_BUCKET.lock().unwrap().as_str(),
+      params::S3_EVIDENCE_BUCKET.as_str(),
       "test.txt",
       "text/plain",
       b"Hello, S3!".to_vec(),
@@ -97,21 +107,18 @@ mod tests {
     .unwrap();
 
     // List all objects
-    let objects = s3
-      .list_objects(constants::S3_EVIDENCE_BUCKET.lock().unwrap().as_str())
-      .await
-      .unwrap();
+    let objects = s3.list_objects(params::S3_EVIDENCE_BUCKET.as_str()).await.unwrap();
     assert!(objects.contains(&"test.txt".to_string()));
 
     // Download the object
     let content = s3
-      .get_object(constants::S3_EVIDENCE_BUCKET.lock().unwrap().as_str(), "test.txt")
+      .get_object(params::S3_EVIDENCE_BUCKET.as_str(), "test.txt")
       .await
       .unwrap();
     assert_eq!(content, b"Hello, S3!");
 
     // Delete the object
-    s3.delete_object(constants::S3_EVIDENCE_BUCKET.lock().unwrap().as_str(), "test.txt")
+    s3.delete_object(params::S3_EVIDENCE_BUCKET.as_str(), "test.txt")
       .await
       .unwrap();
   }

@@ -23,7 +23,7 @@ impl DynamoDbClient {
       .set_item(Some(item))
       .send()
       .await
-      .map_err(|e| e.to_string())?;
+      .map_err(|e| format!("AWS DynamoDB: PutItem failed on Table '{table_name}' with error: {e}"))?;
     Ok(())
   }
 
@@ -39,7 +39,7 @@ impl DynamoDbClient {
       .set_key(Some(key))
       .send()
       .await
-      .map_err(|e| e.to_string())?;
+      .map_err(|e| format!("AWS DynamoDB: GetItem failed on Table '{table_name}' with error: {e}"))?;
     Ok(resp.item.unwrap_or_default())
   }
 
@@ -51,7 +51,7 @@ impl DynamoDbClient {
       .set_key(Some(key))
       .send()
       .await
-      .map_err(|e| e.to_string())?;
+      .map_err(|e| format!("AWS DynamoDB: DeleteItem failed on Table '{table_name}' with error: {e}"))?;
     Ok(())
   }
 
@@ -71,20 +71,20 @@ impl DynamoDbClient {
       .set_expression_attribute_names(expression_attribute_names)
       .send()
       .await
-      .map_err(|e| e.to_string())?;
+      .map_err(|e| format!("AWS DynamoDB: QueryItems failed on Table '{table_name}' with error: {e}"))?;
     Ok(resp.items.unwrap_or_default())
   }
 }
 
 #[cfg(test)]
 mod tests {
-  use crate::{aws, constants};
+  use crate::{aws, params};
   use std::collections::HashMap;
 
   #[tokio::test]
   async fn test_db() {
-    let config = aws::config::create().await.expect("Failed to create AWS config");
-    let db = aws::db::DynamoDbClient::new(&config);
+    // Initialize a DynamoDB client
+    let db = aws::db::DynamoDbClient::new(&params::AWS_SDK_CONFIG);
 
     // Put an item into a table
     let mut item = HashMap::new();
@@ -96,9 +96,7 @@ mod tests {
       "name".to_string(),
       aws_sdk_dynamodb::types::AttributeValue::S("Test Item".to_string()),
     );
-    db.put_item(constants::DYNAMODB_ERRORS_TABLE.lock().unwrap().as_str(), item)
-      .await
-      .unwrap();
+    db.put_item(params::DYNAMODB_ERRORS_TABLE.as_str(), item).await.unwrap();
 
     // Get the item from the table
     let mut key = HashMap::new();
@@ -107,7 +105,7 @@ mod tests {
       aws_sdk_dynamodb::types::AttributeValue::N("1234567".to_string()),
     );
     let retrieved_item = db
-      .get_item(constants::DYNAMODB_ERRORS_TABLE.lock().unwrap().as_str(), key.clone())
+      .get_item(params::DYNAMODB_ERRORS_TABLE.as_str(), key.clone())
       .await
       .unwrap();
     assert_eq!(retrieved_item.get("name").unwrap().as_s().unwrap(), "Test Item");
@@ -121,7 +119,7 @@ mod tests {
     );
     let queried_items = db
       .query_items(
-        constants::DYNAMODB_ERRORS_TABLE.lock().unwrap().as_str(),
+        params::DYNAMODB_ERRORS_TABLE.as_str(),
         key_condition_expression,
         expression_attribute_values,
         Some(HashMap::from([("#ts".to_string(), "timestamp".to_string())])),
@@ -132,7 +130,7 @@ mod tests {
     assert_eq!(queried_items[0].get("name").unwrap().as_s().unwrap(), "Test Item");
 
     // Delete the item from the table
-    db.delete_item(constants::DYNAMODB_ERRORS_TABLE.lock().unwrap().as_str(), key)
+    db.delete_item(params::DYNAMODB_ERRORS_TABLE.as_str(), key)
       .await
       .unwrap();
   }

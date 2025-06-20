@@ -1,6 +1,6 @@
 use super::secrets::SecretManagerClient;
-use rumqttc::{AsyncClient, MqttOptions, QoS, TlsConfiguration, Transport};
-use rumqttc::{Event, EventLoop, NetworkOptions, Packet};
+use crate::AlertData;
+use rumqttc::{AsyncClient, EventLoop, MqttOptions, NetworkOptions, QoS, TlsConfiguration, Transport};
 use std::time::Duration;
 use tokio::sync::broadcast::{self, Receiver, Sender};
 
@@ -45,23 +45,14 @@ impl MqttSettings {
 
 pub struct MqttClient {
   client: AsyncClient,
-  event_sender: Sender<Packet>,
-  listen_thread: tokio::task::JoinHandle<()>,
-}
-
-impl Drop for MqttClient {
-  fn drop(&mut self) {
-    self.listen_thread.abort();
-  }
+  event_sender: Sender<AlertData>,
+  event_loop: Option<EventLoop>,
 }
 
 impl MqttClient {
   pub async fn new(secret_manager: &SecretManagerClient, settings: MqttSettings) -> Result<MqttClient, String> {
-    // Fetch the AWS credentials necessary to create the transport mechanism
-    let secret = secret_manager
-      .get_secret(&settings.credentials_key)
-      .await
-      .map_err(|e| format!("Failed to get secret: {e}"))?;
+    // Fetch the AWS credentials necessary to create the MQTT transport mechanism
+    let secret = secret_manager.get_secret(&settings.credentials_key).await?;
     let ca = secret_manager
       .extract_secret_value(&secret, &settings.ca_key)?
       .replace("\\n", "\n")
@@ -83,28 +74,24 @@ impl MqttClient {
       client_auth: Some((client_cert, client_key)),
     });
 
-    // Create the MQTT options with the provided settings
+    // Generate a set of MQTT options with the provided settings
     let mut mqtt_options = MqttOptions::new(settings.client_id, settings.aws_iot_endpoint, settings.port);
     mqtt_options.set_transport(transport);
     mqtt_options.set_keep_alive(Duration::from_secs(settings.keep_alive_seconds));
     mqtt_options.set_clean_session(settings.clean_session);
 
     // Create a new MQTT client and event loop with the specified options
+    let (event_sender, _) = broadcast::channel(10000);
     let (client, mut event_loop) = AsyncClient::new(mqtt_options, 10000);
     let mut network_options = NetworkOptions::new();
     network_options.set_connection_timeout(settings.keep_alive_seconds);
     event_loop.set_network_options(network_options);
 
-    // Create a new async task to listen for incoming MQTT messages
-    let (event_sender, _) = broadcast::channel(10000);
-    let event_sender_clone = event_sender.clone();
-    let listen_thread = tokio::spawn(async move {
-      MqttClient::mqtt_listener(event_loop, event_sender_clone).await.unwrap();
-    });
+    // Return the MQTT client and corresponding event structures
     Ok(MqttClient {
       client,
       event_sender,
-      listen_thread,
+      event_loop: Some(event_loop),
     })
   }
 
@@ -113,56 +100,52 @@ impl MqttClient {
       .client
       .disconnect()
       .await
-      .map_err(|e| format!("Failed to disconnect MQTT client: {e}"))
+      .map_err(|e| format!("MQTT: Failed to disconnect with error: {e}"))
   }
 
   #[must_use]
-  pub fn get_receiver(&self) -> Receiver<Packet> {
+  pub fn get_sender(&self) -> Sender<AlertData> {
+    self.event_sender.clone()
+  }
+
+  #[must_use]
+  pub fn get_receiver(&self) -> Receiver<AlertData> {
     self.event_sender.subscribe()
   }
 
-  pub async fn subscribe<S: Into<String>>(&self, topic: S, qos: QoS) -> Result<(), String> {
-    self
-      .client
-      .subscribe(topic, qos)
-      .await
-      .map_err(|e| format!("Failed to subscribe: {e:?}"))
+  #[must_use]
+  pub fn take_event_loop(&mut self) -> EventLoop {
+    self.event_loop.take().expect("MQTT: Event loop not initialized")
   }
 
-  async fn mqtt_listener(mut event_loop: EventLoop, event_sender: Sender<Packet>) -> Result<(), i32> {
-    loop {
-      match event_loop.poll().await {
-        Ok(Event::Incoming(event)) => {
-          let _ = event_sender.send(event);
-        }
-        Err(error) => {
-          println!("AWS MQTT client error: {error:?}");
-        }
-        _ => {}
-      }
-    }
+  pub async fn subscribe(&self, topic: &str, qos: QoS) -> Result<(), String> {
+    self.client.subscribe(topic, qos).await.map_err(|e| {
+      format!(
+        "MQTT: Failed to subscribe to topic '{topic}' at QoS '{}' with error: {e}",
+        qos as i8
+      )
+    })
   }
 }
 
 #[cfg(test)]
 mod tests {
-  use crate::{aws, constants};
+  use crate::{aws, params};
 
   #[tokio::test]
   async fn test_mqtt() {
     // Create an MQTT client
-    let config = aws::config::create().await.expect("Failed to create AWS config");
-    let secret_manager = aws::secrets::SecretManagerClient::new(&config);
+    let secret_manager = aws::secrets::SecretManagerClient::new(&params::AWS_SDK_CONFIG);
     let settings = aws::mqtt::MqttSettings::new(
-      constants::MQTT_CLIENT_ID,
-      constants::MQTT_CREDENTIALS_KEY.lock().unwrap().as_str(),
-      constants::MQTT_CA_KEY.lock().unwrap().as_str(),
-      constants::MQTT_CLIENT_CERT_KEY.lock().unwrap().as_str(),
-      constants::MQTT_CLIENT_KEY_KEY.lock().unwrap().as_str(),
-      constants::MQTT_ENDPOINT.lock().unwrap().as_str(),
-      u16::from_str_radix(constants::MQTT_PORT.lock().unwrap().as_str(), 10).unwrap_or(8883),
-      constants::MQTT_CLEAN_SESSION,
-      constants::MQTT_KEEP_ALIVE,
+      params::MQTT_CLIENT_ID,
+      params::MQTT_CREDENTIALS_KEY.as_str(),
+      params::MQTT_CA_KEY.as_str(),
+      params::MQTT_CLIENT_CERT_KEY.as_str(),
+      params::MQTT_CLIENT_KEY_KEY.as_str(),
+      params::MQTT_ENDPOINT.as_str(),
+      u16::from_str_radix(params::MQTT_PORT.as_str(), 10).unwrap_or(8883),
+      params::MQTT_CLEAN_SESSION,
+      params::MQTT_KEEP_ALIVE,
     );
     let mqtt_client = aws::mqtt::MqttClient::new(&secret_manager, settings)
       .await
