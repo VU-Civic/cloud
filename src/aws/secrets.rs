@@ -45,7 +45,7 @@ impl SecretManagerClient {
 mod tests {
   use crate::{aws, params};
 
-  #[tokio::test]
+  #[tokio::test(flavor = "multi_thread")]
   async fn test_secrets() {
     let secret_manager = aws::secrets::SecretManagerClient::new(&params::AWS_SDK_CONFIG);
     let secret = secret_manager

@@ -81,7 +81,7 @@ mod tests {
   use crate::{aws, params};
   use std::collections::HashMap;
 
-  #[tokio::test]
+  #[tokio::test(flavor = "multi_thread")]
   async fn test_db() {
     // Initialize a DynamoDB client
     let db = aws::db::DynamoDbClient::new(&params::AWS_SDK_CONFIG);

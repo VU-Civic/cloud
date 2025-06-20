@@ -18,6 +18,7 @@ pub struct MqttSettings {
 
 impl MqttSettings {
   #[must_use]
+  #[allow(clippy::too_many_arguments)]
   pub fn new(
     client_id: &str,
     credentials_key: &str,
@@ -132,7 +133,7 @@ impl MqttClient {
 mod tests {
   use crate::{aws, params};
 
-  #[tokio::test]
+  #[tokio::test(flavor = "multi_thread")]
   async fn test_mqtt() {
     // Create an MQTT client
     let secret_manager = aws::secrets::SecretManagerClient::new(&params::AWS_SDK_CONFIG);

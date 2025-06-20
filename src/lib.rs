@@ -4,7 +4,7 @@ pub mod params;
 
 use bytes::Bytes;
 
-#[repr(packed)]
+#[repr(packed, C)]
 struct AlertDataPacked {
   timestamp: f64,
   lat: f32,
@@ -29,9 +29,9 @@ impl std::fmt::Display for AlertData {
 
 pub fn bytes_to_alert_data(bytes: &Bytes) -> Option<AlertData> {
   if bytes.len() == std::mem::size_of::<AlertDataPacked>() {
-    let packed: &AlertDataPacked = unsafe { &*(bytes.as_ptr() as *const _) };
-    if packed.timestamp > 1750453333.0
-      && packed.timestamp < 1908237733.0
+    let packed: &AlertDataPacked = unsafe { &*bytes.as_ptr().cast() };
+    if packed.timestamp > 1_750_453_333.0
+      && packed.timestamp < 1_908_237_733.0
       && packed.lat >= -90.0
       && packed.lat <= 90.0
       && packed.lon >= -180.0

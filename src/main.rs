@@ -11,9 +11,8 @@ use std::{
   },
 };
 
-#[tokio::main(flavor = "multi_thread")]
-async fn main() -> Result<(), String> {
-  // Initialize logging to either the terminal or a log file
+// Initialize logging to either the terminal or a log file depending on the environment
+fn initialize_logging() {
   if std::io::stdout().is_terminal() {
     env_logger::Builder::from_env(
       env_logger::Env::default()
@@ -46,6 +45,12 @@ async fn main() -> Result<(), String> {
       .write_style(env_logger::WriteStyle::Never)
       .init();
   }
+}
+
+#[tokio::main(flavor = "multi_thread")]
+async fn main() -> Result<(), String> {
+  // Initialize logging
+  initialize_logging();
   info!("CivicAlert Cloud Service starting...");
 
   // Handle graceful shutdown on reception of SIGINT, SIGTERM, or SIGHUP
@@ -58,7 +63,7 @@ async fn main() -> Result<(), String> {
     if let Some(mqtt_client) = mqtt.as_ref() {
       info!("MQTT: Disconnecting client...");
       match tokio::runtime::Handle::current().block_on(async { mqtt_client.disconnect().await }) {
-        Ok(_) => info!("MQTT: Client disconnected successfully"),
+        Ok(()) => info!("MQTT: Client disconnected successfully"),
         Err(e) => error!("{e}"),
       }
     }
@@ -83,7 +88,7 @@ async fn main() -> Result<(), String> {
     params::MQTT_CLIENT_CERT_KEY.as_str(),
     params::MQTT_CLIENT_KEY_KEY.as_str(),
     params::MQTT_ENDPOINT.as_str(),
-    u16::from_str_radix(params::MQTT_PORT.as_str(), 10).unwrap_or(8883),
+    params::MQTT_PORT.as_str().parse().unwrap_or(8883),
     params::MQTT_CLEAN_SESSION,
     params::MQTT_KEEP_ALIVE,
   );
@@ -118,12 +123,11 @@ async fn main() -> Result<(), String> {
       Ok(Event::Incoming(Packet::Publish(message))) => {
         if let Some(alert) = bytes_to_alert_data(&message.payload) {
           info!("MQTT: Received device alert: {alert}");
-          let _ = event_sender.send(alert.clone());
+          let _ = event_sender.send(alert);
           let receiver = mqtt.as_ref().unwrap().get_receiver();
-          let _ = tokio::spawn(async move { begin_fusion(receiver, alert).await });
+          std::mem::drop(tokio::spawn(async move { begin_fusion(receiver, alert).await }));
         } else {
           error!("MQTT: Invalid device alert bytes: {:?}", message.payload);
-          continue;
         }
       }
       Err(error) => {

@@ -91,7 +91,7 @@ impl S3Client {
 mod tests {
   use crate::{aws, params};
 
-  #[tokio::test]
+  #[tokio::test(flavor = "multi_thread")]
   async fn test_s3() {
     // Initialize an S3 client
     let s3 = aws::s3::S3Client::new(&params::AWS_SDK_CONFIG);

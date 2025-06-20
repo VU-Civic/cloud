@@ -4,24 +4,30 @@ use std::sync::LazyLock;
 use tokio::runtime::Handle;
 
 // Lazy AWS SDK configuration and SSM client initialization
-pub static AWS_SDK_CONFIG: LazyLock<SdkConfig> =
-  LazyLock::new(|| Handle::current().block_on(async { aws_config::load_defaults(BehaviorVersion::latest()).await }));
-pub static AWS_SSM: LazyLock<aws_sdk_ssm::Client> =
-  LazyLock::new(|| Handle::current().block_on(async { aws_sdk_ssm::Client::new(&AWS_SDK_CONFIG) }));
+pub static AWS_SDK_CONFIG: LazyLock<SdkConfig> = LazyLock::new(|| {
+  tokio::task::block_in_place(move || {
+    Handle::current().block_on(async { aws_config::load_defaults(BehaviorVersion::latest()).await })
+  })
+});
+pub static AWS_SSM: LazyLock<aws_sdk_ssm::Client> = LazyLock::new(|| {
+  tokio::task::block_in_place(move || Handle::current().block_on(async { aws_sdk_ssm::Client::new(&AWS_SDK_CONFIG) }))
+});
 
 // Helper function to lazily load a parameter from the AWS Systems Manager (SSM)
 fn load_parameter(parameter_name: &str) -> String {
-  match Handle::current().block_on(async move {
-    AWS_SSM
-      .get_parameter()
-      .name(parameter_name)
-      .with_decryption(true)
-      .send()
-      .await
-      .map_err(|e| format!("Failed to get parameter '{parameter_name}' with error: {e}"))?
-      .parameter
-      .and_then(|p| p.value)
-      .ok_or_else(|| format!("Parameter '{parameter_name}' not found"))
+  match tokio::task::block_in_place(move || {
+    Handle::current().block_on(async move {
+      AWS_SSM
+        .get_parameter()
+        .name(parameter_name)
+        .with_decryption(true)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to get parameter '{parameter_name}' with error: {e}"))?
+        .parameter
+        .and_then(|p| p.value)
+        .ok_or_else(|| format!("Parameter '{parameter_name}' not found"))
+    })
   }) {
     Ok(value) => value,
     Err(error) => {
