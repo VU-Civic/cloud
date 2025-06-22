@@ -1,51 +1,30 @@
-use chrono::{SecondsFormat, Utc};
 use civicalert_cloud::{aws, bytes_to_alert_data, fusion::begin_fusion, params};
-use log::{LevelFilter, error, info};
 use rumqttc::{Event, Packet, QoS};
 use std::{
-  fs::OpenOptions,
-  io::{IsTerminal, Write},
+  io::IsTerminal,
   sync::{
     Arc, Mutex,
     atomic::{AtomicBool, Ordering},
   },
 };
-
-fn initialize_logging() {
-  // Target log output to stdout if a terminal is available, otherwise log to a file
-  let target = if std::io::stdout().is_terminal() {
-    env_logger::Target::Stdout
-  } else {
-    env_logger::Target::Pipe(Box::new(
-      OpenOptions::new()
-        .append(true)
-        .create(true)
-        .open(params::PROCESS_LOG_FILE_PATH)
-        .expect("Unable to create the process log file"),
-    ))
-  };
-
-  // Initialize the logger with a custom format and settings
-  env_logger::Builder::new()
-    .format(|buf, record| {
-      writeln!(
-        buf,
-        "[{} {}] {}",
-        Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
-        record.level(),
-        record.args()
-      )
-    })
-    .target(target)
-    .filter(None, LevelFilter::Info)
-    .write_style(env_logger::WriteStyle::Never)
-    .init();
-}
+use tracing::{error, info};
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<(), String> {
-  // Initialize logging
-  initialize_logging();
+  // Initialize logging to stdout if a terminal is available, otherwise log to a file
+  let (target, _guard) = if std::io::stdout().is_terminal() {
+    tracing_appender::non_blocking(std::io::stdout())
+  } else {
+    let file_appender = tracing_appender::rolling::daily(params::PROCESS_LOG_FILE_DIR, params::PROCESS_LOG_FILE_NAME);
+    tracing_appender::non_blocking(file_appender)
+  };
+  tracing_subscriber::fmt()
+    .with_writer(target)
+    .with_ansi(false)
+    .with_target(false)
+    .with_max_level(tracing_subscriber::filter::LevelFilter::INFO)
+    .compact()
+    .init();
   info!("CivicAlert Cloud Service starting...");
 
   // Initialize AWS clients and configurations

@@ -1,7 +1,7 @@
 use aws_config::{BehaviorVersion, SdkConfig};
-use log::error;
 use std::sync::LazyLock;
 use tokio::runtime::Handle;
+use tracing::error;
 
 // Lazy AWS SDK configuration and SSM client initialization
 pub static AWS_SDK_CONFIG: LazyLock<SdkConfig> = LazyLock::new(|| {
@@ -59,7 +59,8 @@ pub const MQTT_CLEAN_SESSION: bool = true;
 pub const MQTT_KEEP_ALIVE: u64 = 230;
 
 // Process-specific constants
-pub const PROCESS_LOG_FILE_PATH: &str = "/var/log/civicalert-cloud.log";
+pub const PROCESS_LOG_FILE_DIR: &str = "/var/log";
+pub const PROCESS_LOG_FILE_NAME: &str = "civicalert-cloud.log";
 pub const ALIVE_WATCHDOG_INTERVAL_SECONDS: u64 = 4 * 60;
 
 // Fusion algorithm parameters
