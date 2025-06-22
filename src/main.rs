@@ -6,45 +6,40 @@ use std::{
   fs::OpenOptions,
   io::{IsTerminal, Write},
   sync::{
-    Arc,
+    Arc, Mutex,
     atomic::{AtomicBool, Ordering},
   },
 };
 
-// Initialize logging to either the terminal or a log file depending on the environment
 fn initialize_logging() {
-  if std::io::stdout().is_terminal() {
-    env_logger::Builder::from_env(
-      env_logger::Env::default()
-        .default_filter_or("info")
-        .default_write_style_or("never"),
-    )
-    .format_timestamp_millis()
-    .format_target(false)
-    .init();
+  // Target log output to stdout if a terminal is available, otherwise log to a file
+  let target = if std::io::stdout().is_terminal() {
+    env_logger::Target::Stdout
   } else {
-    let target = Box::new(
+    env_logger::Target::Pipe(Box::new(
       OpenOptions::new()
         .append(true)
         .create(true)
         .open(params::PROCESS_LOG_FILE_PATH)
         .expect("Unable to create the process log file"),
-    );
-    env_logger::Builder::new()
-      .format(|buf, record| {
-        writeln!(
-          buf,
-          "[{} {}] {}",
-          Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
-          record.level(),
-          record.args()
-        )
-      })
-      .target(env_logger::Target::Pipe(target))
-      .filter(None, LevelFilter::Info)
-      .write_style(env_logger::WriteStyle::Never)
-      .init();
-  }
+    ))
+  };
+
+  // Initialize the logger with a custom format and settings
+  env_logger::Builder::new()
+    .format(|buf, record| {
+      writeln!(
+        buf,
+        "[{} {}] {}",
+        Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
+        record.level(),
+        record.args()
+      )
+    })
+    .target(target)
+    .filter(None, LevelFilter::Info)
+    .write_style(env_logger::WriteStyle::Never)
+    .init();
 }
 
 #[tokio::main(flavor = "multi_thread")]
@@ -52,25 +47,6 @@ async fn main() -> Result<(), String> {
   // Initialize logging
   initialize_logging();
   info!("CivicAlert Cloud Service starting...");
-
-  // Handle graceful shutdown on reception of SIGINT, SIGTERM, or SIGHUP
-  let mut mqtt: Option<aws::mqtt::MqttClient> = None;
-  let running = Arc::new(AtomicBool::new(true));
-  let running_clone = Arc::clone(&running);
-  if let Err(e) = ctrlc::set_handler(move || {
-    info!("Received process termination signal");
-    running_clone.store(false, Ordering::SeqCst);
-    if let Some(mqtt_client) = mqtt.as_ref() {
-      info!("MQTT: Disconnecting client...");
-      match tokio::runtime::Handle::current().block_on(async { mqtt_client.disconnect().await }) {
-        Ok(()) => info!("MQTT: Client disconnected successfully"),
-        Err(e) => error!("{e}"),
-      }
-    }
-  }) {
-    error!("Error setting up process termination handler: {e}");
-    return Err(e.to_string());
-  }
 
   // Initialize AWS clients and configurations
   info!("Configuring AWS clients...");
@@ -92,19 +68,32 @@ async fn main() -> Result<(), String> {
     params::MQTT_CLEAN_SESSION,
     params::MQTT_KEEP_ALIVE,
   );
-  mqtt = Some(match aws::mqtt::MqttClient::new(&secret_manager, mqtt_settings).await {
-    Ok(mqtt) => mqtt,
-    Err(e) => {
-      error!("{e}");
-      return Err(e);
-    }
-  });
+  let mqtt = Arc::new(Mutex::new(
+    match aws::mqtt::MqttClient::new(&secret_manager, mqtt_settings).await {
+      Ok(mqtt) => mqtt,
+      Err(e) => {
+        error!("{e}");
+        return Err(e);
+      }
+    },
+  ));
   info!("MQTT client successfully configured");
+
+  // Handle graceful shutdown upon reception of a SIGINT
+  let running = Arc::new(AtomicBool::new(true));
+  let running_clone = Arc::clone(&running);
+  let mqtt_clone = Arc::clone(&mqtt);
+  std::mem::drop(tokio::task::spawn_local(async move {
+    let _ = tokio::signal::ctrl_c().await;
+    info!("CivicAlert Cloud Service shutting down...");
+    running_clone.store(false, Ordering::SeqCst);
+    let _ = mqtt_clone.lock().unwrap().disconnect().await;
+  }));
 
   // Subscribe to relevant MQTT message topics
   info!("Subscribing to relevant MQTT topics...");
   if let Err(e) = mqtt
-    .as_ref()
+    .lock()
     .unwrap()
     .subscribe(params::MQTT_ALERTS_TOPIC.as_str(), QoS::AtLeastOnce)
     .await
@@ -115,16 +104,16 @@ async fn main() -> Result<(), String> {
   info!("MQTT topic subscription complete");
 
   // Listen for incoming MQTT messages until process termination has been requested
-  info!("CivicAlert Cloud Service is now running! Send SIGINT or SIGTERM to stop...");
-  let mut event_loop = mqtt.as_mut().unwrap().take_event_loop();
-  let event_sender = mqtt.as_ref().unwrap().get_sender();
+  info!("CivicAlert Cloud Service is now running! Send SIGINT to stop...");
+  let mut event_loop = mqtt.lock().unwrap().take_event_loop();
+  let event_sender = mqtt.lock().unwrap().get_sender();
   while running.load(Ordering::SeqCst) {
     match event_loop.poll().await {
       Ok(Event::Incoming(Packet::Publish(message))) => {
-        if let Some(alert) = bytes_to_alert_data(&message.payload) {
+        if let Some(alert) = bytes_to_alert_data(message.payload.as_ref()) {
           info!("MQTT: Received device alert: {alert}");
           let _ = event_sender.send(alert);
-          let receiver = mqtt.as_ref().unwrap().get_receiver();
+          let receiver = mqtt.lock().unwrap().get_receiver();
           std::mem::drop(tokio::spawn(async move { begin_fusion(receiver, alert).await }));
         } else {
           error!("MQTT: Invalid device alert bytes: {:?}", message.payload);
@@ -138,7 +127,6 @@ async fn main() -> Result<(), String> {
   }
 
   // Gracefully shut down the cloud service
-  info!("CivicAlert Cloud Service shutting down...");
   Ok(())
 }
 

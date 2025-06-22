@@ -15,11 +15,10 @@ async fn run_data_collection(mut receiver: Receiver<AlertData>, data: &mut Vec<A
 pub async fn collect_data(receiver: Receiver<AlertData>, master_alert: AlertData) -> Vec<AlertData> {
   // Run the data collection task for a limited time
   let mut data: Vec<AlertData> = Vec::new();
-  let () = tokio::time::timeout(
-    std::time::Duration::from_secs(params::FUSION_DATA_COLLECTION_SECONDS),
+  let _ = tokio::time::timeout(
+    tokio::time::Duration::from_secs(params::FUSION_DATA_COLLECTION_SECONDS),
     run_data_collection(receiver, &mut data, master_alert),
   )
-  .await
-  .unwrap();
+  .await;
   data
 }

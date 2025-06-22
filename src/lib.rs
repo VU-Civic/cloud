@@ -2,8 +2,6 @@ pub mod aws;
 pub mod fusion;
 pub mod params;
 
-use bytes::Bytes;
-
 #[repr(packed, C)]
 struct AlertDataPacked {
   timestamp: f64,
@@ -27,9 +25,10 @@ impl std::fmt::Display for AlertData {
   }
 }
 
-pub fn bytes_to_alert_data(bytes: &Bytes) -> Option<AlertData> {
-  if bytes.len() == std::mem::size_of::<AlertDataPacked>() {
-    let packed: &AlertDataPacked = unsafe { &*bytes.as_ptr().cast() };
+#[must_use]
+pub fn bytes_to_alert_data(message: &[u8]) -> Option<AlertData> {
+  if message.len() == std::mem::size_of::<AlertDataPacked>() {
+    let packed: &AlertDataPacked = unsafe { &*message.as_ptr().cast() };
     if packed.timestamp > 1_750_453_333.0
       && packed.timestamp < 1_908_237_733.0
       && packed.lat >= -90.0
