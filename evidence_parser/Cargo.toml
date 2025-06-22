@@ -1,0 +1,19 @@
+[package]
+edition.workspace = true
+name = "civicalert-evidence-parser"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "CivicAlert audio evidence clip parser and reconstruction application"
+documentation.workspace = true
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+publish.workspace = true
+
+[dependencies]
+
+[features]
+default = []
