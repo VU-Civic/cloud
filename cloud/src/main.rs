@@ -63,10 +63,11 @@ async fn main() -> Result<(), String> {
   let running = Arc::new(AtomicBool::new(true));
   let running_clone = running.clone();
   let mqtt_clone = mqtt.clone();
+  let async_handle = tokio::runtime::Handle::current().clone();
   if let Err(e) = ctrlc::set_handler(move || {
     info!("CivicAlert Cloud Service shutting down...");
     running_clone.store(false, Ordering::SeqCst);
-    match tokio::runtime::Handle::current().block_on(async { mqtt_clone.lock().await.disconnect().await }) {
+    match async_handle.block_on(async { mqtt_clone.lock().await.disconnect().await }) {
       Ok(()) => info!("MQTT: Client disconnected successfully"),
       Err(e) => error!("{e}"),
     }
