@@ -2,8 +2,11 @@ mod algorithm;
 mod collection;
 
 use civicalert_cloud_common::{AlertData, aws::db::DynamoDbClient};
-use std::sync::{Arc, Mutex};
-use tokio::{sync::broadcast::Receiver, task};
+use std::sync::Arc;
+use tokio::{
+  sync::{Mutex, broadcast::Receiver},
+  task,
+};
 
 pub async fn begin_fusion(
   receiver: Receiver<AlertData>,

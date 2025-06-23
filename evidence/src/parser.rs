@@ -1,10 +1,10 @@
 use civicalert_cloud_common::{EvidenceClip, aws::db::DynamoDbClient, aws::s3::S3Client, params};
 use dashmap::DashMap;
-use std::{
-  collections::HashMap,
-  sync::{Arc, Mutex},
+use std::{collections::HashMap, sync::Arc};
+use tokio::sync::{
+  Mutex,
+  mpsc::{Receiver, Sender, channel},
 };
-use tokio::sync::mpsc::{Receiver, Sender, channel};
 use tracing::{error, info};
 
 async fn store_evidence_clip(
@@ -73,7 +73,7 @@ pub fn create_clip_parser_task(s3: Arc<Mutex<S3Client>>, db: Arc<Mutex<DynamoDbC
     loop {
       if let Some(clip) = parser_receiver.recv().await {
         if let Some(device_sender) = device_parsers.get(&clip.client_id) {
-          let _ = device_sender.send(clip);
+          let _ = device_sender.send(clip).await;
         } else {
           info!("Starting new task to process clips from: {}", clip.client_id);
           let s3_clone = s3.clone();
@@ -82,7 +82,7 @@ pub fn create_clip_parser_task(s3: Arc<Mutex<S3Client>>, db: Arc<Mutex<DynamoDbC
           let (device_sender, device_receiver) = channel::<EvidenceClip>(100);
           device_parsers.insert(clip.client_id.clone(), device_sender);
           std::mem::drop(tokio::spawn(async move {
-            parse_device_clips(device_parsers_clone, device_receiver, clip, s3_clone, db_clone).await
+            parse_device_clips(device_parsers_clone, device_receiver, clip, s3_clone, db_clone).await;
           }));
         }
       }

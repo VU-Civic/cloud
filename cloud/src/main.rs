@@ -4,10 +4,11 @@ use rumqttc::{Event, Packet, QoS};
 use std::{
   io::IsTerminal,
   sync::{
-    Arc, Mutex,
+    Arc,
     atomic::{AtomicBool, Ordering},
   },
 };
+use tokio::sync::Mutex;
 use tracing::{error, info};
 
 #[tokio::main(flavor = "multi_thread")]
@@ -66,14 +67,14 @@ async fn main() -> Result<(), String> {
     let _ = tokio::signal::ctrl_c().await;
     info!("CivicAlert Cloud Service shutting down...");
     running_clone.store(false, Ordering::SeqCst);
-    let _ = mqtt_clone.lock().unwrap().disconnect().await;
+    let _ = mqtt_clone.lock().await.disconnect().await;
   }));
 
   // Subscribe to relevant MQTT message topics
   info!("Subscribing to relevant MQTT topics...");
   if let Err(e) = mqtt
     .lock()
-    .unwrap()
+    .await
     .subscribe(params::MQTT_ALERTS_TOPIC.as_str(), QoS::AtLeastOnce)
     .await
   {
@@ -84,8 +85,8 @@ async fn main() -> Result<(), String> {
 
   // Listen for incoming MQTT messages until process termination has been requested
   info!("CivicAlert Cloud Service is now running! Send SIGINT to stop...");
-  let mut event_loop = mqtt.lock().unwrap().take_event_loop();
-  let event_sender = mqtt.lock().unwrap().get_sender();
+  let mut event_loop = mqtt.lock().await.take_event_loop();
+  let event_sender = mqtt.lock().await.get_sender();
   while running.load(Ordering::SeqCst) {
     match event_loop.poll().await {
       Ok(Event::Incoming(Packet::Publish(message))) => {
@@ -93,7 +94,7 @@ async fn main() -> Result<(), String> {
           info!("MQTT: Received device alert: {alert}");
           let _ = event_sender.send(alert);
           let db_clone = db.clone();
-          let receiver = mqtt.lock().unwrap().get_receiver();
+          let receiver = mqtt.lock().await.get_receiver();
           std::mem::drop(tokio::spawn(
             async move { begin_fusion(receiver, db_clone, alert).await },
           ));

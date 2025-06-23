@@ -5,10 +5,11 @@ use rumqttc::{Event, Packet, QoS};
 use std::{
   io::IsTerminal,
   sync::{
-    Arc, Mutex,
+    Arc,
     atomic::{AtomicBool, Ordering},
   },
 };
+use tokio::sync::Mutex;
 use tracing::{error, info};
 
 #[tokio::main(flavor = "multi_thread")]
@@ -68,14 +69,14 @@ async fn main() -> Result<(), String> {
     let _ = tokio::signal::ctrl_c().await;
     info!("CivicAlert Evidence Parser shutting down...");
     running_clone.store(false, Ordering::SeqCst);
-    let _ = mqtt_clone.lock().unwrap().disconnect().await;
+    let _ = mqtt_clone.lock().await.disconnect().await;
   }));
 
   // Subscribe to relevant MQTT message topics
   info!("Subscribing to relevant MQTT topics...");
   if let Err(e) = mqtt
     .lock()
-    .unwrap()
+    .await
     .subscribe(params::MQTT_AUDIO_EVIDENCE_TOPIC.as_str(), QoS::AtLeastOnce)
     .await
   {
@@ -89,13 +90,13 @@ async fn main() -> Result<(), String> {
 
   // Listen for incoming MQTT messages until process termination has been requested
   info!("CivicAlert Evidence Parser is now running! Send SIGINT to stop...");
-  let mut event_loop = mqtt.lock().unwrap().take_event_loop();
+  let mut event_loop = mqtt.lock().await.take_event_loop();
   while running.load(Ordering::SeqCst) {
     match event_loop.poll().await {
       Ok(Event::Incoming(Packet::Publish(message))) => {
         info!("MQTT: Received evidence clip segment from: {}", message.pkid); // TODO: Fix this to use the correct field (client ID)
-        if let Some(clip) = bytes_to_evidence_clip_data(message.payload) {
-          let _ = parser_sender.send(clip);
+        if let Some(clip) = bytes_to_evidence_clip_data(&message.payload) {
+          let _ = parser_sender.send(clip).await;
         } else {
           error!("MQTT: Invalid evidence clip bytes");
         }

@@ -61,7 +61,7 @@ pub fn bytes_to_alert_data(message: &[u8]) -> Option<AlertData> {
 }
 
 #[must_use]
-pub fn bytes_to_evidence_clip_data(message: Bytes) -> Option<EvidenceClip> {
+pub fn bytes_to_evidence_clip_data(message: &Bytes) -> Option<EvidenceClip> {
   if message.len() > 4 {
     Some(EvidenceClip {
       client_id: String::from("Unknown"), // TODO: Implement this
