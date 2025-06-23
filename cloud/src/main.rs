@@ -59,16 +59,21 @@ async fn main() -> Result<(), String> {
   ));
   info!("MQTT client successfully configured");
 
-  // Handle graceful shutdown upon reception of a SIGINT
+  // Handle graceful shutdown on reception of SIGINT, SIGTERM, or SIGHUP
   let running = Arc::new(AtomicBool::new(true));
   let running_clone = running.clone();
   let mqtt_clone = mqtt.clone();
-  std::mem::drop(tokio::task::spawn_local(async move {
-    let _ = tokio::signal::ctrl_c().await;
+  if let Err(e) = ctrlc::set_handler(move || {
     info!("CivicAlert Cloud Service shutting down...");
     running_clone.store(false, Ordering::SeqCst);
-    let _ = mqtt_clone.lock().await.disconnect().await;
-  }));
+    match tokio::runtime::Handle::current().block_on(async { mqtt_clone.lock().await.disconnect().await }) {
+      Ok(()) => info!("MQTT: Client disconnected successfully"),
+      Err(e) => error!("{e}"),
+    }
+  }) {
+    error!("Error setting up process termination handler: {e}");
+    return Err(e.to_string());
+  }
 
   // Subscribe to relevant MQTT message topics
   info!("Subscribing to relevant MQTT topics...");

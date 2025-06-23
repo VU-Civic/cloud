@@ -15,6 +15,7 @@ publish.workspace = true
 
 [dependencies]
 civicalert-cloud-common.workspace = true
+ctrlc.workspace = true
 rumqttc.workspace = true
 tokio.workspace = true
 tracing.workspace = true

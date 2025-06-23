@@ -1,13 +1,11 @@
-use aws_config::{BehaviorVersion, SdkConfig};
+use aws_config::SdkConfig;
 use std::sync::LazyLock;
 use tokio::runtime::Handle;
 use tracing::error;
 
 // Lazy AWS SDK configuration and SSM client initialization
 pub static AWS_SDK_CONFIG: LazyLock<SdkConfig> = LazyLock::new(|| {
-  tokio::task::block_in_place(move || {
-    Handle::current().block_on(async { aws_config::load_defaults(BehaviorVersion::latest()).await })
-  })
+  tokio::task::block_in_place(move || Handle::current().block_on(async { aws_config::load_from_env().await }))
 });
 pub static AWS_SSM: LazyLock<aws_sdk_ssm::Client> = LazyLock::new(|| {
   tokio::task::block_in_place(move || Handle::current().block_on(async { aws_sdk_ssm::Client::new(&AWS_SDK_CONFIG) }))

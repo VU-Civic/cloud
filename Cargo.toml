@@ -26,6 +26,7 @@ aws-sdk-s3 = { version = "1" }
 aws-sdk-secretsmanager = { version = "1" }
 aws-sdk-ssm = { version = "1" }
 bytes = { version = "1" }
+ctrlc = { version = "3.4", features = ["termination"] }
 rumqttc = { version = "0.24", default-features = false, features=["use-rustls"] }
 serde_json = { version = "1.0", default-features = false, features=["std"] }
 tokio = { version = "1", default-features = false, features = ["io-util", "parking_lot", "rt-multi-thread", "signal", "tokio-macros"] }

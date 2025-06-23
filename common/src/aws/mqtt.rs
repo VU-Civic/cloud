@@ -143,7 +143,7 @@ mod tests {
       params::MQTT_CLIENT_CERT_KEY.as_str(),
       params::MQTT_CLIENT_KEY_KEY.as_str(),
       params::MQTT_ENDPOINT.as_str(),
-      u16::from_str_radix(params::MQTT_PORT.as_str(), 10).unwrap_or(8883),
+      params::MQTT_PORT.as_str().parse().unwrap_or(8883),
       params::MQTT_CLEAN_SESSION,
       params::MQTT_KEEP_ALIVE,
     );

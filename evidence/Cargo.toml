@@ -16,6 +16,7 @@ publish.workspace = true
 [dependencies]
 bytes.workspace = true
 civicalert-cloud-common.workspace = true
+ctrlc.workspace = true
 dashmap = { version = "6.1" }
 rumqttc.workspace = true
 tokio.workspace = true
