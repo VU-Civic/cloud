@@ -1,5 +1,5 @@
 [workspace]
-members = ["cloud", "evidence_parser"]
+members = ["common", "cloud", "evidence"]
 resolver = "2"
 
 [workspace.package]
@@ -16,14 +16,16 @@ categories = ["mathematics", "multimedia::audio", "science"]
 publish = false
 
 [workspace.dependencies]
-cloud = { path = "cloud", version = "1.0.0" }
-evidence_parser = { path = "evidence_parser", version = "1.0.0" }
-aws-config = { version = "1", default-features = false, features = ["behavior-version-latest"] }
-aws-credential-types = { version = "1", default-features = false }
-aws-sdk-dynamodb = { version = "1", default-features = false }
-aws-sdk-s3 = { version = "1", default-features = false }
-aws-sdk-secretsmanager = { version = "1", default-features = false }
-aws-sdk-ssm = { version = "1", default-features = false }
+civiclaert-cloud = { path = "cloud", version = "1.0.0" }
+civicalert-cloud-common = { path = "common", version = "1.0.0" }
+civicalert-evidence = { path = "evidence", version = "1.0.0" }
+aws-config = { version = "1", features = ["behavior-version-latest"] }
+aws-credential-types = { version = "1" }
+aws-sdk-dynamodb = { version = "1" }
+aws-sdk-s3 = { version = "1" }
+aws-sdk-secretsmanager = { version = "1" }
+aws-sdk-ssm = { version = "1" }
+bytes = { version = "1" }
 rumqttc = { version = "0.24", default-features = false, features=["use-rustls"] }
 serde_json = { version = "1.0", default-features = false, features=["std"] }
 tokio = { version = "1", default-features = false, features = ["io-util", "parking_lot", "rt-multi-thread", "signal", "tokio-macros"] }

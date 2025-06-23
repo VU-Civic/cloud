@@ -1,5 +1,4 @@
 use super::secrets::SecretManagerClient;
-use crate::AlertData;
 use rumqttc::{AsyncClient, EventLoop, MqttOptions, NetworkOptions, QoS, TlsConfiguration, Transport};
 use std::time::Duration;
 use tokio::sync::broadcast::{self, Receiver, Sender};
@@ -44,14 +43,14 @@ impl MqttSettings {
   }
 }
 
-pub struct MqttClient {
+pub struct MqttClient<T> {
   client: AsyncClient,
-  event_sender: Sender<AlertData>,
+  event_sender: Sender<T>,
   event_loop: Option<EventLoop>,
 }
 
-impl MqttClient {
-  pub async fn new(secret_manager: &SecretManagerClient, settings: MqttSettings) -> Result<MqttClient, String> {
+impl<T: Clone> MqttClient<T> {
+  pub async fn new(secret_manager: &SecretManagerClient, settings: MqttSettings) -> Result<MqttClient<T>, String> {
     // Fetch the AWS credentials necessary to create the MQTT transport mechanism
     let secret = secret_manager.get_secret(&settings.credentials_key).await?;
     let ca = secret_manager
@@ -82,7 +81,7 @@ impl MqttClient {
     mqtt_options.set_clean_session(settings.clean_session);
 
     // Create a new MQTT client and event loop with the specified options
-    let (event_sender, _) = broadcast::channel(10000);
+    let (event_sender, _) = broadcast::channel::<T>(10000);
     let (client, mut event_loop) = AsyncClient::new(mqtt_options, 10000);
     let mut network_options = NetworkOptions::new();
     network_options.set_connection_timeout(settings.keep_alive_seconds);
@@ -105,12 +104,12 @@ impl MqttClient {
   }
 
   #[must_use]
-  pub fn get_sender(&self) -> Sender<AlertData> {
+  pub fn get_sender(&self) -> Sender<T> {
     self.event_sender.clone()
   }
 
   #[must_use]
-  pub fn get_receiver(&self) -> Receiver<AlertData> {
+  pub fn get_receiver(&self) -> Receiver<T> {
     self.event_sender.subscribe()
   }
 
@@ -131,7 +130,7 @@ impl MqttClient {
 
 #[cfg(test)]
 mod tests {
-  use crate::{aws, params};
+  use crate::{AlertData, aws, params};
 
   #[tokio::test(flavor = "multi_thread")]
   async fn test_mqtt() {
@@ -148,7 +147,7 @@ mod tests {
       params::MQTT_CLEAN_SESSION,
       params::MQTT_KEEP_ALIVE,
     );
-    let mqtt_client = aws::mqtt::MqttClient::new(&secret_manager, settings)
+    let mqtt_client = aws::mqtt::MqttClient::<AlertData>::new(&secret_manager, settings)
       .await
       .expect("Failed to create MQTT client");
     mqtt_client

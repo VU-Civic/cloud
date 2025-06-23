@@ -1,13 +1,19 @@
-.PHONY: all run debug clean format check test
+.PHONY: all cloud evidence run debug clean format check test
 
 all:
-	cargo build --release
+	$(error You must specify one of the following targets: cloud evidence run debug clean format check test)
+
+cloud:
+	cargo build --release --package civicalert-cloud
+
+evidence:
+	cargo build --release --package civicalert-evidence
 
 run:
-	cargo run --release
+	cargo run --release --package civicalert-cloud
 
 debug:
-	cargo run
+	cargo run --package civicalert-cloud
 
 clean:
 	cargo clean

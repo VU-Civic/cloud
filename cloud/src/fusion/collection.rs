@@ -1,4 +1,4 @@
-use crate::{AlertData, params};
+use civicalert_cloud_common::{AlertData, params};
 use tokio::sync::broadcast::Receiver;
 
 async fn run_data_collection(mut receiver: Receiver<AlertData>, data: &mut Vec<AlertData>, master_alert: AlertData) {

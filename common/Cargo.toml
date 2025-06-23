@@ -1,10 +1,10 @@
 [package]
 edition.workspace = true
-name = "civicalert-cloud"
+name = "civicalert-cloud-common"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "CivicAlert sensor fusion cloud application"
+description = "CivicAlert common and shared cloud library"
 documentation.workspace = true
 readme.workspace = true
 homepage.workspace = true
@@ -14,12 +14,20 @@ categories.workspace = true
 publish.workspace = true
 
 [dependencies]
-civicalert-cloud-common.workspace = true
+aws-config.workspace = true
+aws-credential-types.workspace = true
+aws-sdk-dynamodb.workspace = true
+aws-sdk-s3.workspace = true
+aws-sdk-secretsmanager.workspace = true
+aws-sdk-ssm.workspace = true
+bytes.workspace = true
 rumqttc.workspace = true
+serde_json.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-tracing-appender.workspace = true
-tracing-subscriber.workspace = true
 
 [features]
 default = []
+
+[lib]
+crate-type = ["rlib"]

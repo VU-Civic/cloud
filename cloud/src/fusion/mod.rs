@@ -1,15 +1,20 @@
 mod algorithm;
 mod collection;
 
-use crate::AlertData;
-use tokio::{self, sync::broadcast::Receiver};
+use civicalert_cloud_common::{AlertData, aws::db::DynamoDbClient};
+use std::sync::{Arc, Mutex};
+use tokio::{sync::broadcast::Receiver, task};
 
-pub async fn begin_fusion(receiver: Receiver<AlertData>, master_alert: AlertData) {
+pub async fn begin_fusion(
+  receiver: Receiver<AlertData>,
+  db_client: Arc<Mutex<DynamoDbClient>>,
+  master_alert: AlertData,
+) {
   // Start the data collection process and wait for it to complete
   let data = collection::collect_data(receiver, master_alert).await;
 
   // Use the collected data to carry out the fusion algorithm
-  if let Ok(_result) = tokio::task::spawn_blocking(move || {
+  if let Ok(_result) = task::spawn_blocking(move || {
     algorithm::localize_event(data);
   })
   .await
