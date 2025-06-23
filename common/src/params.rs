@@ -63,9 +63,9 @@ pub const ALIVE_WATCHDOG_INTERVAL_SECONDS: u64 = 4 * 60;
 
 // Fusion algorithm parameters
 pub const FUSION_DATA_COLLECTION_SECONDS: u64 = 3;
-pub const FUSION_ALGORITHM_MAX_DISTANCE: f64 = 100.0;
+pub const FUSION_ALGORITHM_MAX_DISTANCE_METERS: f64 = 700.0;
 pub const FUSION_ALGORITHM_MAX_TIME_DIFF: u64 = 60;
-pub const FUSION_ALGORITHM_MINIMUM_FUSED_EVENTS: usize = 3;
+pub const FUSION_ALGORITHM_MIN_NUM_EVENTS: usize = 3;
 
 // Evidence processing parameters
 pub const EVIDENCE_PROCESSING_TIMEOUT_SECONDS: u64 = 10;

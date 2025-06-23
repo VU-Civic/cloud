@@ -6,7 +6,6 @@ async fn run_data_collection(mut receiver: Receiver<AlertData>, data: &mut Vec<A
   loop {
     if let Ok(message) = receiver.recv().await {
       // TODO: Verify that the message contains data feasibly related to the master_alert
-      println!("Received message {message}");
       data.push(message);
     }
   }
