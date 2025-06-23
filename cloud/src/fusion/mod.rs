@@ -7,7 +7,7 @@ use tokio::{sync::broadcast::Receiver, task};
 
 pub async fn begin_fusion(
   receiver: Receiver<AlertData>,
-  db_client: Arc<Mutex<DynamoDbClient>>,
+  _db_client: Arc<Mutex<DynamoDbClient>>,
   master_alert: AlertData,
 ) {
   // Start the data collection process and wait for it to complete

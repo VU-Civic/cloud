@@ -62,8 +62,8 @@ async fn main() -> Result<(), String> {
 
   // Handle graceful shutdown upon reception of a SIGINT
   let running = Arc::new(AtomicBool::new(true));
-  let running_clone = Arc::clone(&running);
-  let mqtt_clone = Arc::clone(&mqtt);
+  let running_clone = running.clone();
+  let mqtt_clone = mqtt.clone();
   std::mem::drop(tokio::task::spawn_local(async move {
     let _ = tokio::signal::ctrl_c().await;
     info!("CivicAlert Evidence Parser shutting down...");
@@ -85,7 +85,7 @@ async fn main() -> Result<(), String> {
   info!("MQTT topic subscription complete");
 
   // Initiate a task to send incoming evidence clips to the correct device parser
-  let parser_sender = parser::create_clip_parser_loop(s3, db);
+  let parser_sender = parser::create_clip_parser_task(s3, db);
 
   // Listen for incoming MQTT messages until process termination has been requested
   info!("CivicAlert Evidence Parser is now running! Send SIGINT to stop...");

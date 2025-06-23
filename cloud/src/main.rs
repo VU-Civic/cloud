@@ -60,8 +60,8 @@ async fn main() -> Result<(), String> {
 
   // Handle graceful shutdown upon reception of a SIGINT
   let running = Arc::new(AtomicBool::new(true));
-  let running_clone = Arc::clone(&running);
-  let mqtt_clone = Arc::clone(&mqtt);
+  let running_clone = running.clone();
+  let mqtt_clone = mqtt.clone();
   std::mem::drop(tokio::task::spawn_local(async move {
     let _ = tokio::signal::ctrl_c().await;
     info!("CivicAlert Cloud Service shutting down...");
@@ -92,7 +92,7 @@ async fn main() -> Result<(), String> {
         if let Some(alert) = bytes_to_alert_data(message.payload.as_ref()) {
           info!("MQTT: Received device alert: {alert}");
           let _ = event_sender.send(alert);
-          let db_clone = Arc::clone(&db);
+          let db_clone = db.clone();
           let receiver = mqtt.lock().unwrap().get_receiver();
           std::mem::drop(tokio::spawn(
             async move { begin_fusion(receiver, db_clone, alert).await },
