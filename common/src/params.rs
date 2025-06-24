@@ -50,6 +50,8 @@ pub static DYNAMODB_ALERTS_TABLE: LazyLock<String> = LazyLock::new(|| load_param
 pub static DYNAMODB_DEVICES_TABLE: LazyLock<String> = LazyLock::new(|| load_parameter("DynamoDbDevicesTable"));
 pub static DYNAMODB_ERRORS_TABLE: LazyLock<String> = LazyLock::new(|| load_parameter("DynamoDbErrorsTable"));
 pub static S3_EVIDENCE_BUCKET: LazyLock<String> = LazyLock::new(|| load_parameter("S3EvidenceBucket"));
+pub static SQS_DATA_QUEUE_URL: LazyLock<String> = LazyLock::new(|| load_parameter("SqsDataQueueUrl"));
+pub static SNS_ALERT_TOPIC_ARN: LazyLock<String> = LazyLock::new(|| load_parameter("SnsAlertTopicArn"));
 
 // MQTT client settings
 pub const MQTT_CLOUD_CLIENT_ID: &str = "civicalert-cloud-client";

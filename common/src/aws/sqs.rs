@@ -27,6 +27,7 @@ impl SqsClient {
   }
 
   pub async fn receive_message(&self, queue_url: &str) -> Result<Option<(String, String)>, String> {
+    // TODO: DO WE NEED TO SET WAIT_TIME_SECONDS TO 20 (the maximum) OR CAN WE DEFINE THIS AS A QUEUE ATTRIBUTE WHEN CREATING THE QUEUE?
     let resp = self
       .client
       .receive_message()
@@ -75,23 +76,26 @@ mod tests {
   async fn test_sqs() {
     // Initialize an SQS client
     let sqs = aws::sqs::SqsClient::new(&params::AWS_SDK_CONFIG);
-    let queue_url = "https://sqs.us-east-1.amazonaws.com/123456789012/my-queue"; // TODO: Put actual queue URL here
 
     // Test sending a message
-    let send_result = sqs.send_message(queue_url, "Test message").await;
+    let send_result = sqs
+      .send_message(params::SQS_DATA_QUEUE_URL.as_str(), "Test message")
+      .await;
     assert!(send_result.is_ok());
 
     // Test receiving and deleting a message
-    let receive_result = sqs.receive_message(queue_url).await;
+    let receive_result = sqs.receive_message(params::SQS_DATA_QUEUE_URL.as_str()).await;
     assert!(receive_result.is_ok());
     if let Some((receipt_handle, message)) = receive_result.unwrap() {
       println!("Received message: {}", message); // TODO: Compare to "Test message"
-      let delete_result = sqs.delete_message(queue_url, &receipt_handle).await;
+      let delete_result = sqs
+        .delete_message(params::SQS_DATA_QUEUE_URL.as_str(), &receipt_handle)
+        .await;
       assert!(delete_result.is_ok());
     }
 
     // Test purging the queue
-    let purge_result = sqs.purge_queue(queue_url).await;
+    let purge_result = sqs.purge_queue(params::SQS_DATA_QUEUE_URL.as_str()).await;
     assert!(purge_result.is_ok());
   }
 }
