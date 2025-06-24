@@ -14,7 +14,7 @@ pub static AWS_SSM: LazyLock<aws_sdk_ssm::Client> = LazyLock::new(|| {
 // Helper function to lazily load a parameter from the AWS Systems Manager (SSM)
 fn load_parameter(parameter_name: &str) -> String {
   match tokio::task::block_in_place(move || {
-    Handle::current().block_on(async move {
+    Handle::current().block_on(async {
       AWS_SSM
         .get_parameter()
         .name(parameter_name)
@@ -52,14 +52,15 @@ pub static DYNAMODB_ERRORS_TABLE: LazyLock<String> = LazyLock::new(|| load_param
 pub static S3_EVIDENCE_BUCKET: LazyLock<String> = LazyLock::new(|| load_parameter("S3EvidenceBucket"));
 
 // MQTT client settings
-pub const MQTT_CLIENT_ID: &str = "civicalert-cloud-client";
+pub const MQTT_CLOUD_CLIENT_ID: &str = "civicalert-cloud-client";
+pub const MQTT_EVIDENCE_CLIENT_ID: &str = "civicalert-evidence-client";
 pub const MQTT_CLEAN_SESSION: bool = true;
 pub const MQTT_KEEP_ALIVE: u64 = 230;
 
 // Process-specific constants
 pub const PROCESS_LOG_FILE_DIR: &str = "/var/log";
 pub const PROCESS_LOG_FILE_NAME: &str = "civicalert-cloud.log";
-pub const ALIVE_WATCHDOG_INTERVAL_SECONDS: u64 = 4 * 60;
+pub const PROCESS_ALIVE_WATCHDOG_INTERVAL_SECONDS: u64 = 4 * 60;
 
 // Fusion algorithm parameters
 pub const FUSION_DATA_COLLECTION_SECONDS: u64 = 3;

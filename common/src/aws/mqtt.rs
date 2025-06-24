@@ -137,7 +137,7 @@ mod tests {
     // Create an MQTT client
     let secret_manager = aws::secrets::SecretManagerClient::new(&params::AWS_SDK_CONFIG);
     let settings = aws::mqtt::MqttSettings::new(
-      params::MQTT_CLIENT_ID,
+      params::MQTT_CLOUD_CLIENT_ID,
       params::MQTT_CREDENTIALS_KEY.as_str(),
       params::MQTT_CA_KEY.as_str(),
       params::MQTT_CLIENT_CERT_KEY.as_str(),

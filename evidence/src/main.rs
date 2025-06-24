@@ -40,7 +40,7 @@ async fn main() -> Result<(), String> {
   // Initialize MQTT client settings and create the client
   info!("Configuring MQTT client...");
   let mqtt_settings = aws::mqtt::MqttSettings::new(
-    params::MQTT_CLIENT_ID,
+    params::MQTT_EVIDENCE_CLIENT_ID,
     params::MQTT_CREDENTIALS_KEY.as_str(),
     params::MQTT_CA_KEY.as_str(),
     params::MQTT_CLIENT_CERT_KEY.as_str(),
