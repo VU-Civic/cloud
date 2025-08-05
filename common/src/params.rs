@@ -53,6 +53,10 @@ pub static S3_EVIDENCE_BUCKET: LazyLock<String> = LazyLock::new(|| load_paramete
 pub static SQS_DATA_QUEUE_URL: LazyLock<String> = LazyLock::new(|| load_parameter("SqsDataQueueUrl"));
 pub static SNS_ALERT_TOPIC_ARN: LazyLock<String> = LazyLock::new(|| load_parameter("SnsAlertTopicArn"));
 
+// Weather API parameters
+pub static WEATHER_OPENWEATHERMAP_API_ID: LazyLock<String> = LazyLock::new(|| load_parameter("OpenWeatherMapApiId"));
+pub static WEATHER_TOMORROWIO_API_ID: LazyLock<String> = LazyLock::new(|| load_parameter("TomorrowIoApiId"));
+
 // MQTT client settings
 pub const MQTT_CLOUD_CLIENT_ID: &str = "civicalert-cloud-client";
 pub const MQTT_EVIDENCE_CLIENT_ID: &str = "civicalert-evidence-client";
@@ -63,6 +67,10 @@ pub const MQTT_KEEP_ALIVE: u64 = 230;
 pub const PROCESS_LOG_FILE_DIR: &str = "/var/log";
 pub const PROCESS_LOG_FILE_NAME: &str = "civicalert-cloud.log";
 pub const PROCESS_ALIVE_WATCHDOG_INTERVAL_SECONDS: u64 = 4 * 60;
+
+// Alert message constants
+pub const CELL_IMEI_LENGTH: usize = 15;
+pub const DATA_MAX_TIMESTAMP_IN_PAST_SECONDS: f64 = 60.0;
 
 // Fusion algorithm parameters
 pub const FUSION_DATA_COLLECTION_SECONDS: u64 = 3;
