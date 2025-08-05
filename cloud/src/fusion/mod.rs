@@ -15,12 +15,12 @@ pub async fn begin_fusion(
   master_alert: AlertData,
 ) {
   // Start the data collection process and wait for it to complete
-  let data = collection::collect_data(receiver, master_alert).await;
+  let mut data = collection::collect_data(receiver, master_alert).await;
 
   // Use the collected data to carry out the fusion algorithm
   if data.len() >= params::FUSION_ALGORITHM_MIN_NUM_EVENTS {
     if let Ok(_result) = task::spawn_blocking(move || {
-      algorithm::localize_event(&data);
+      algorithm::localize_event(data.as_mut_slice());
     })
     .await
     {

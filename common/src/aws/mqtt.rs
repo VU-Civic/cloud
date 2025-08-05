@@ -130,7 +130,7 @@ impl<T: Clone> MqttClient<T> {
 
 #[cfg(test)]
 mod tests {
-  use crate::{AlertData, aws, params};
+  use crate::{EventInfo, aws, params};
 
   #[tokio::test(flavor = "multi_thread")]
   async fn test_mqtt() {
@@ -147,7 +147,7 @@ mod tests {
       params::MQTT_CLEAN_SESSION,
       params::MQTT_KEEP_ALIVE,
     );
-    let mqtt_client = aws::mqtt::MqttClient::<AlertData>::new(&secret_manager, settings)
+    let mqtt_client = aws::mqtt::MqttClient::<EventInfo>::new(&secret_manager, settings)
       .await
       .expect("Failed to create MQTT client");
     mqtt_client

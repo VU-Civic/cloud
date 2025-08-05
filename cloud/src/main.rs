@@ -96,14 +96,25 @@ async fn main() -> Result<(), String> {
   while running.load(Ordering::SeqCst) {
     match event_loop.poll().await {
       Ok(Event::Incoming(Packet::Publish(message))) => {
+        // Handle an incoming device alert message
         if let Some(alert) = bytes_to_alert_data(message.payload.as_ref()) {
-          info!("MQTT: Received device alert: {alert}");
-          let _ = event_sender.send(alert);
-          let db_clone = db.clone();
-          let receiver = mqtt.lock().await.get_receiver();
-          std::mem::drop(tokio::spawn(
-            async move { begin_fusion(receiver, db_clone, alert).await },
-          ));
+          info!(
+            "MQTT: Received device alert from Device ID \"{}\" containing {} events",
+            alert.device_id,
+            alert.events.len()
+          );
+          aws::update_device_details_from_alert(db, alert).await;
+
+          // Kick off a new sensor fusion process for each event in the alert
+          for event in alert.events {
+            info!("Processing event: {event}");
+            let _ = event_sender.send(alert);
+            let db_clone = db.clone();
+            let receiver = mqtt.lock().await.get_receiver();
+            std::mem::drop(tokio::spawn(
+              async move { begin_fusion(receiver, db_clone, alert).await },
+            ));
+          }
         } else {
           error!("MQTT: Invalid device alert bytes: {:?}", message.payload);
         }
@@ -121,4 +132,3 @@ async fn main() -> Result<(), String> {
 
 // TODO: Use CloudWatch (https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Agent-Configuration-File-Details.html)
 // TODO: Ensure this is started with a process monitor to automatically restart on failure
-// TODO: Update device-info table with the latest device information after every successful MQTT reception
