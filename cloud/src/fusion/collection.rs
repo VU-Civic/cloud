@@ -1,7 +1,7 @@
-use civicalert_cloud_common::{AlertData, params};
+use civicalert_cloud_common::{EventInfo, params};
 use tokio::sync::broadcast::Receiver;
 
-async fn run_data_collection(mut receiver: Receiver<AlertData>, data: &mut Vec<AlertData>, master_alert: AlertData) {
+async fn run_data_collection(mut receiver: Receiver<EventInfo>, data: &mut Vec<EventInfo>, master_alert: EventInfo) {
   data.push(master_alert);
   loop {
     if let Ok(message) = receiver.recv().await {
@@ -11,9 +11,9 @@ async fn run_data_collection(mut receiver: Receiver<AlertData>, data: &mut Vec<A
   }
 }
 
-pub async fn collect_data(receiver: Receiver<AlertData>, master_alert: AlertData) -> Vec<AlertData> {
+pub async fn collect_data(receiver: Receiver<EventInfo>, master_alert: EventInfo) -> Vec<EventInfo> {
   // Run the data collection task for a limited time
-  let mut data: Vec<AlertData> = Vec::new();
+  let mut data: Vec<EventInfo> = Vec::new();
   let _ = tokio::time::timeout(
     tokio::time::Duration::from_secs(params::FUSION_DATA_COLLECTION_SECONDS),
     run_data_collection(receiver, &mut data, master_alert),

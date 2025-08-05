@@ -12,7 +12,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::error;
 
-pub async fn update_device_details_from_alert(db: &Arc<Mutex<DynamoDbClient>>, alert: AlertData) {
+pub async fn update_device_details_from_alert(db: &Arc<Mutex<DynamoDbClient>>, alert: &AlertData) {
   // Create a database update item for the alert
   let update_item = HashMap::from([
     (

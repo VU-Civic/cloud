@@ -100,19 +100,19 @@ async fn main() -> Result<(), String> {
         if let Some(alert) = bytes_to_alert_data(message.payload.as_ref()) {
           info!(
             "MQTT: Received device alert from Device ID \"{}\" containing {} events",
-            alert.device_id,
+            alert.device_id.as_str(),
             alert.events.len()
           );
-          aws::update_device_details_from_alert(db, alert).await;
+          aws::update_device_details_from_alert(&db, &alert).await;
 
           // Kick off a new sensor fusion process for each event in the alert
           for event in alert.events {
             info!("Processing event: {event}");
-            let _ = event_sender.send(alert);
+            let _ = event_sender.send(event);
             let db_clone = db.clone();
             let receiver = mqtt.lock().await.get_receiver();
             std::mem::drop(tokio::spawn(
-              async move { begin_fusion(receiver, db_clone, alert).await },
+              async move { begin_fusion(receiver, db_clone, event).await },
             ));
           }
         } else {

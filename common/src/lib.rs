@@ -36,6 +36,8 @@ pub struct EventInfo {
   pub sensor_llh: [f64; 3],
   pub sensor_ecef: [f64; 3],
   pub previously_used: bool,
+  pub sensor_enu: [f64; 3],
+  pub relative_timestamp: f64,
 }
 
 pub struct AlertData {
@@ -132,6 +134,8 @@ pub fn bytes_to_alert_data(message: &[u8]) -> Option<AlertData> {
               sensor_llh: [lat, lon, height],
               sensor_ecef: [ecef_x, ecef_y, ecef_z],
               previously_used: false,
+              sensor_enu: [0.0, 0.0, 0.0],
+              relative_timestamp: 0.0,
             });
           }
         }
