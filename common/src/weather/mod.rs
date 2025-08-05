@@ -4,13 +4,14 @@ mod tomorrowio;
 
 use crate::params;
 
-pub async fn get_temperature(lat: f32, lon: f32) -> Result<f32, String> {
+// TODO: Store the temperature in a cache to avoid repeated API calls for the same location
+pub async fn get_temperature(lat: f64, lon: f64) -> Result<f32, String> {
   // Attempt to get temperature from NOAA first followed by Tomorrow.io then OpenWeatherMap
   let mut result = noaa::get_temperature(lat, lon).await;
-  if !result.is_ok() {
+  if result.is_err() {
     result = tomorrowio::get_temperature(params::WEATHER_TOMORROWIO_API_ID.as_str(), lat, lon).await;
   }
-  if !result.is_ok() {
+  if result.is_err() {
     result = openweathermap::get_temperature(params::WEATHER_OPENWEATHERMAP_API_ID.as_str(), lat, lon).await;
   }
   result.map_err(|e| format!("Failed to get temperature: {e}"))

@@ -1,6 +1,7 @@
 use reqwest;
 
-pub async fn get_temperature(api_id: &str, lat: f32, lon: f32) -> Result<f32, String> {
+#[allow(clippy::cast_possible_truncation)]
+pub async fn get_temperature(api_id: &str, lat: f64, lon: f64) -> Result<f32, String> {
   let client = reqwest::Client::builder()
     .user_agent("(civicalert.net, support@civicalert.net)")
     .build()

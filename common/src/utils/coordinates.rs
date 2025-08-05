@@ -1,5 +1,5 @@
-const A: f64 = 6378137.0; // WGS-84 semi-major axis
-const F: f64 = 1.0 / 298.257223563; // WGS-84 flattening
+const A: f64 = 6_378_137.0; // WGS-84 semi-major axis
+const F: f64 = 1.0 / 298.257_223_563; // WGS-84 flattening
 const E2: f64 = F * (2.0 - F); // Square of eccentricity
 
 const A1: f64 = A * E2;
@@ -9,6 +9,7 @@ const A4: f64 = (5.0 / 2.0) * A2;
 const A5: f64 = A1 + A3;
 const A6: f64 = 1.0 - E2;
 
+#[must_use]
 pub fn llh_to_ecef(lat: f64, lon: f64, height: f64) -> (f64, f64, f64) {
   let lat_rad = lat.to_radians();
   let lon_rad = lon.to_radians();
@@ -22,6 +23,7 @@ pub fn llh_to_ecef(lat: f64, lon: f64, height: f64) -> (f64, f64, f64) {
   (x, y, z)
 }
 
+#[must_use]
 pub fn ecef_to_enu(lat_ref: f64, lon_ref: f64, height_ref: f64, x: f64, y: f64, z: f64) -> (f64, f64, f64) {
   let lat_rad = lat_ref.to_radians();
   let lon_rad = lon_ref.to_radians();
@@ -43,6 +45,7 @@ pub fn ecef_to_enu(lat_ref: f64, lon_ref: f64, height_ref: f64, x: f64, y: f64, 
   (east, north, up)
 }
 
+#[must_use]
 pub fn enu_to_ecef(lat_ref: f64, lon_ref: f64, height_ref: f64, east: f64, north: f64, up: f64) -> (f64, f64, f64) {
   let lat_rad = lat_ref.to_radians();
   let lon_rad = lon_ref.to_radians();
@@ -61,9 +64,11 @@ pub fn enu_to_ecef(lat_ref: f64, lon_ref: f64, height_ref: f64, east: f64, north
   (x_ref + dx, y_ref + dy, z_ref + dz)
 }
 
-pub fn ecef_to_llh(x: f64, y: f64, z: f64) -> (f64, f64, f64) {
-  let z_pos = z.abs();
-  let w2 = x.powi(2) + y.powi(2);
+#[must_use]
+#[allow(clippy::many_single_char_names)]
+pub fn ecef_to_llh(ecef_x: f64, ecef_y: f64, ecef_z: f64) -> (f64, f64, f64) {
+  let z_pos = ecef_z.abs();
+  let w2 = ecef_x.powi(2) + ecef_y.powi(2);
   let z2 = z_pos.powi(2);
   let w = w2.sqrt();
   let r2 = w2 + z2;
@@ -76,7 +81,7 @@ pub fn ecef_to_llh(x: f64, y: f64, z: f64) -> (f64, f64, f64) {
   let c2 = c.powi(2);
 
   // Compute latitude differently depending on its nearness to the Earth's poles
-  let lon_rad = y.atan2(x);
+  let lon_rad = ecef_y.atan2(ecef_x);
   let mut lat_rad = if c2 > 0.3 {
     s *= 1.0 + c2 * (A1 + u + s2 * v) / r;
     s2 = s.powi(2);
@@ -102,28 +107,32 @@ pub fn ecef_to_llh(x: f64, y: f64, z: f64) -> (f64, f64, f64) {
   let height = f + 0.5 * m * p;
 
   // Convert radians to degrees
-  if z < 0.0 {
+  if ecef_z < 0.0 {
     lat_rad = -lat_rad;
   }
   (lat_rad.to_degrees(), lon_rad.to_degrees(), height)
 }
 
+#[must_use]
 pub fn distance_from_llh3d(lat1: f64, lon1: f64, height1: f64, lat2: f64, lon2: f64, height2: f64) -> f64 {
   let (x1, y1, z1) = llh_to_ecef(lat1, lon1, height1);
   let (x2, y2, z2) = llh_to_ecef(lat2, lon2, height2);
   ((x2 - x1).powi(2) + (y2 - y1).powi(2) + (z2 - z1).powi(2)).sqrt()
 }
 
+#[must_use]
 pub fn distance_from_llh2d(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
   let (x1, y1, z1) = llh_to_ecef(lat1, lon1, 0.0);
   let (x2, y2, z2) = llh_to_ecef(lat2, lon2, 0.0);
   ((x2 - x1).powi(2) + (y2 - y1).powi(2) + (z2 - z1).powi(2)).sqrt()
 }
 
+#[must_use]
 pub fn distance_from_ecef(x1: f64, y1: f64, z1: f64, x2: f64, y2: f64, z2: f64) -> f64 {
   ((x2 - x1).powi(2) + (y2 - y1).powi(2) + (z2 - z1).powi(2)).sqrt()
 }
 
+#[must_use]
 pub fn estimate_distance2d(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
   let x = lat2.to_radians() - lat1.to_radians();
   let y = (lon2.to_radians() - lon1.to_radians()) * lat1.to_radians().cos();

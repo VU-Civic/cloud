@@ -2,8 +2,8 @@ use reqwest;
 
 async fn get_grid_details(
   client: &reqwest::Client,
-  lat: f32,
-  lon: f32,
+  lat: f64,
+  lon: f64,
 ) -> Result<(String, String, String), reqwest::Error> {
   let url = format!("https://api.weather.gov/points/{lat:.4},{lon:.4}");
   let result: serde_json::Value = client.get(&url).send().await?.json().await?;
@@ -15,6 +15,7 @@ async fn get_grid_details(
   ))
 }
 
+#[allow(clippy::cast_possible_truncation)]
 async fn get_forecast(
   client: &reqwest::Client,
   grid_id: &str,
@@ -24,7 +25,7 @@ async fn get_forecast(
   let url = format!("https://api.weather.gov/gridpoints/{grid_id}/{grid_x},{grid_y}/forecast");
   let result: serde_json::Value = client.get(&url).send().await?.json().await?;
   let properties = &result["properties"]["periods"][0];
-  if properties["temperatureUnit"].as_str().unwrap_or("F").starts_with("F") {
+  if properties["temperatureUnit"].as_str().unwrap_or("F").starts_with('F') {
     let fahrenheit = properties["temperature"].as_f64().unwrap();
     Ok(((fahrenheit - 32.0) * 5.0 / 9.0) as f32)
   } else {
@@ -32,7 +33,7 @@ async fn get_forecast(
   }
 }
 
-pub async fn get_temperature(lat: f32, lon: f32) -> Result<f32, String> {
+pub async fn get_temperature(lat: f64, lon: f64) -> Result<f32, String> {
   let client = reqwest::Client::builder()
     .user_agent("(civicalert.net, support@civicalert.net)")
     .build()

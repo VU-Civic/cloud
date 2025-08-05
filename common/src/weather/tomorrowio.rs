@@ -1,6 +1,7 @@
 use reqwest;
 
-pub async fn get_temperature(api_id: &str, lat: f32, lon: f32) -> Result<f32, String> {
+#[allow(clippy::cast_possible_truncation)]
+pub async fn get_temperature(api_id: &str, lat: f64, lon: f64) -> Result<f32, String> {
   let url = format!("https://api.tomorrow.io/v4/weather/realtime?location={lat},{lon}&units=metric&apikey={api_id}");
   let client = reqwest::Client::builder()
     .user_agent("(civicalert.net, support@civicalert.net)")
