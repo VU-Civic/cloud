@@ -64,8 +64,8 @@ namespace CivicAlert
   constexpr const int EVIDENCE_AUDIO_SAMPLE_RATE_HZ = 48000;
   constexpr const int EVIDENCE_AUDIO_NUM_CHANNELS = 1;
   constexpr const int EVIDENCE_AUDIO_BITRATE_BPS = 16000;
+  constexpr const int EVIDENCE_PROCESSING_TIMEOUT_SECONDS = 3;
   constexpr const unsigned int EVIDENCE_AUDIO_MS_PER_FRAME = 20;
-  constexpr const unsigned int EVIDENCE_PROCESSING_TIMEOUT_SECONDS = 3;
   constexpr const unsigned int EVIDENCE_DECODED_FRAME_SAMPLES = (EVIDENCE_AUDIO_SAMPLE_RATE_HZ / 1000) * EVIDENCE_AUDIO_MS_PER_FRAME;
 
   // Process-specific constants
