@@ -1,1 +1,0 @@
-# CivicAlert Cloud Software Repository
