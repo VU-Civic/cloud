@@ -60,7 +60,7 @@ void PacketReceiver::receptionTimeoutThread(uint32_t deviceID)
     // Sleep for one second and increment the timer count
     std::this_thread::sleep_for(std::chrono::seconds(1));
     std::lock_guard<std::mutex> receptionLock(receptionTimerMutex);
-    const uint32_t timerCount = std::get<1>(receptionTimers[deviceID]);
+    const int32_t timerCount = std::get<1>(receptionTimers[deviceID]);
     if ((timerCount >= 0) && (timerCount < CivicAlert::EVIDENCE_PROCESSING_TIMEOUT_SECONDS))
       std::get<1>(receptionTimers[deviceID])++;
     else
