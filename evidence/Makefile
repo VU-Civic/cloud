@@ -30,10 +30,10 @@ setup:
 		git clone https://github.com/Microsoft/vcpkg.git && cd vcpkg && ./bootstrap-vcpkg.sh; \
 	fi
 	@if [ -n "$(DNF_EXISTS)" ]; then \
-		sudo dnf install -y make gcc-c++ opus-devel libogg-devel zlib-devel libcurl-devel rapidjson-devel libpq-devel; \
+		sudo dnf install -y make gcc-c++ kernel-headers glibc-devel opus-devel libogg-devel zlib-devel libcurl-devel rapidjson-devel libpq-devel; \
 		./vcpkg/vcpkg install aws-sdk-cpp[s3,ec2,iot] --recurse; \
 	elif [ -n "$(APT_EXISTS)" ]; then \
-		sudo apt install -y make gcc-c++ libopus-dev libogg-dev zlib1g-dev libcurl-dev rapidjson-dev libpq-dev; \
+		sudo apt install -y make gcc-c++ linux-libc-dev libopus-dev libogg-dev zlib1g-dev libcurl-dev rapidjson-dev libpq-dev; \
 		./vcpkg/vcpkg install aws-sdk-cpp[s3,ec2,iot] --recurse; \
 	elif [ -n "$(BREW_EXISTS)" ]; then \
 		brew install make g++ opus libogg rapidjson libpq aws-sdk-cpp; \
