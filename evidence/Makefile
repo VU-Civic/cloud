@@ -17,7 +17,7 @@ MKDIR := @mkdir -p
 RM := @rm -rf
 
 CXXFLAGS := -O3 -march=native -flto -std=c++17 -Wall -Wextra -I../common -I../common/aws -I../common/general -I/usr/include -I/usr/local/include -I/usr/include/opus -I/usr/include/postgresql -I/opt/homebrew/opt/libpq/include -I/opt/homebrew/include -I/opt/homebrew/include/opus
-LDFLAGS := -L/usr/local/lib -L/usr/lib -L/opt/homebrew/lib -L/opt/homebrew/opt/libpq/lib -laws-c-common -laws-crt-cpp -laws-cpp-sdk-core -laws-cpp-sdk-ssm -laws-cpp-sdk-secretsmanager -laws-cpp-sdk-s3 -laws-cpp-sdk-sqs -lpq -lopus -lopusenc -lpthread
+LDFLAGS := -L/usr/local/lib -L/usr/lib -L/opt/homebrew/lib -L/opt/homebrew/opt/libpq/lib -laws-c-common -laws-crt-cpp -laws-cpp-sdk-core -laws-cpp-sdk-ssm -laws-cpp-sdk-secretsmanager -laws-cpp-sdk-s3 -laws-cpp-sdk-sqs -lpq -lopus -lopusenc -lz -lpthread
 
 
 #### Build Targets ####
