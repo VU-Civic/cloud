@@ -26,15 +26,20 @@ all: $(BUILD) $(OBJECTS)
 	$(CXX) $(CXXFLAGS) -o $(BUILD)/$(TARGET) $(OBJECTS) $(LDFLAGS)
 
 setup:
-	@if [ -n "$(DNF_EXISTS)" ] || [ -n "$(APT_EXISTS)" ] && [ ! -d "vcpkg" ]; then \
-		git clone https://github.com/Microsoft/vcpkg.git && cd vcpkg && ./bootstrap-vcpkg.sh; \
-	fi
 	@if [ -n "$(DNF_EXISTS)" ]; then \
-		sudo dnf install -y make gcc-c++ kernel-headers glibc-devel opus-devel libogg-devel zlib-devel libcurl-devel rapidjson-devel libpq-devel; \
-		./vcpkg/vcpkg install aws-sdk-cpp[s3,ec2,iot] --recurse; \
+		sudo dnf install -y make cmake gcc-c++ opus-devel libogg-devel zlib-devel libcurl-devel rapidjson-devel libpq-devel; \
+		git clone --recurse-submodules https://github.com/aws/aws-sdk-cpp.git && cd aws-sdk-cpp && mkdir build && cd build; \
+		cmake .. -DCMAKE_BUILD_TYPE=Release -DCPP_STANDARD=17 -DENABLE_RTTI=OFF -DENABLE_TESTING=OFF -DENABLE_VIRTUAL_OPERATIONS=OFF -DENABLE_UNITY_BUILD=ON -DBUILD_SHARED_LIBS=OFF -DBUILD_ONLY="s3;sqs;ssm;secretsmanager;iot"; \
+		make && sudo make install && cd ../.. && rm -rf aws-sdk-cpp; \
+		wget https://github.com/xiph/libopusenc/releases/download/v0.3/libopusenc-0.3.tar.gz && tar -xzf libopusenc-0.3.tar.gz && cd libopusenc-0.3; \
+		./configure && make && sudo make install && cd .. && rm -rf libopusenc-0.3 libopusenc-0.3.tar.gz; \
 	elif [ -n "$(APT_EXISTS)" ]; then \
-		sudo apt install -y make gcc-c++ linux-libc-dev libopus-dev libogg-dev zlib1g-dev libcurl-dev rapidjson-dev libpq-dev; \
-		./vcpkg/vcpkg install aws-sdk-cpp[s3,ec2,iot] --recurse; \
+		sudo apt install -y make cmake gcc-c++ libopus-dev libogg-dev zlib1g-dev libcurl4-openssl-dev rapidjson-dev libpq-dev; \
+		git clone --recurse-submodules https://github.com/aws/aws-sdk-cpp.git && cd aws-sdk-cpp && mkdir build && cd build; \
+		cmake .. -DCMAKE_BUILD_TYPE=Release -DCPP_STANDARD=17 -DENABLE_RTTI=OFF -DENABLE_TESTING=OFF -DENABLE_VIRTUAL_OPERATIONS=OFF -DENABLE_UNITY_BUILD=ON -DBUILD_SHARED_LIBS=OFF -DBUILD_ONLY="s3;sqs;ssm;secretsmanager;iot"; \
+		make && sudo make install && cd ../.. && rm -rf aws-sdk-cpp; \
+		wget https://github.com/xiph/libopusenc/releases/download/v0.3/libopusenc-0.3.tar.gz && tar -xzf libopusenc-0.3.tar.gz && cd libopusenc-0.3; \
+		./configure && make && sudo make install && cd .. && rm -rf libopusenc-0.3 libopusenc-0.3.tar.gz; \
 	elif [ -n "$(BREW_EXISTS)" ]; then \
 		brew install make g++ opus libogg rapidjson libpq aws-sdk-cpp; \
 	fi
