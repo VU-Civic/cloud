@@ -26,7 +26,7 @@ all: $(BUILD) $(OBJECTS)
 	$(CXX) $(CXXFLAGS) -o $(BUILD)/$(TARGET) $(OBJECTS) $(LDFLAGS)
 
 setup:
-	@if [ -n "$(DNF_EXISTS)" ] || [ -n "$(APT_EXISTS)" ]; then \
+	@if [ -n "$(DNF_EXISTS)" ] || [ -n "$(APT_EXISTS)" ] && [ ! -d "vcpkg" ]; then \
 		git clone https://github.com/Microsoft/vcpkg.git && cd vcpkg && ./bootstrap-vcpkg.sh; \
 	fi
 	@if [ -n "$(DNF_EXISTS)" ]; then \
