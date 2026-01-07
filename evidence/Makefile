@@ -30,7 +30,7 @@ setup:
 		git clone https://github.com/Microsoft/vcpkg.git && cd vcpkg && ./bootstrap-vcpkg.sh; \
 	fi
 	@if [ -n "$(DNF_EXISTS)" ]; then \
-		sudo dnf install -y libopus-devel libogg-devel zlib-devel libcurl-devel rapidjson-devel libpq-devel; \
+		sudo dnf install -y opus-devel libogg-devel zlib-devel libcurl-devel rapidjson-devel libpq-devel; \
 		./vcpkg install aws-sdk-cpp[s3, ec2, iot] --recurse; \
 	elif [ -n "$(APT_EXISTS)" ]; then \
 		sudo apt install -y libopus-dev libogg-dev zlib1g-dev libcurl-dev rapidjson-dev libpq-dev; \
