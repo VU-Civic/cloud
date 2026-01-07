@@ -18,7 +18,6 @@ typedef struct __attribute__((__packed__))
 } EvidenceMessage;
 
 // Evidence clip Opus framing constants
-#define EVIDENCE_OPUS_FRAME_DELIMITER 0xAA
 #define EVIDENCE_OPUS_FRAME_MAX_BYTES 256
 typedef struct __attribute__((__packed__, aligned(4)))
 {
@@ -60,6 +59,7 @@ namespace CivicAlert
   constexpr const char* EVIDENCE_DATABASE_CLIP_URL_KEY = "evidence_clip_url";
 
   // Evidence processing parameters
+  constexpr const uint8_t EVIDENCE_OPUS_FRAME_DELIMITER = 0xAA;
   constexpr const char* EVIDENCE_CLIP_FILE_EXTENSION = ".ogg";
   constexpr const int EVIDENCE_AUDIO_SAMPLE_RATE_HZ = 48000;
   constexpr const int EVIDENCE_AUDIO_NUM_CHANNELS = 1;

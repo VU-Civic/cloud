@@ -76,7 +76,7 @@ void PacketReceiver::receptionTimeoutThread(uint32_t deviceID)
     for (auto& packet : packetBuffer[deviceID])
       if (packet.empty())
       {
-        packet.emplace_back(EVIDENCE_OPUS_FRAME_DELIMITER);
+        packet.emplace_back(CivicAlert::EVIDENCE_OPUS_FRAME_DELIMITER);
         packet.emplace_back(0);
       }
     EvidenceProcessor::processEvidenceData(packetBuffer.extract(deviceID));

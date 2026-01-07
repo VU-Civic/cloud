@@ -23,7 +23,6 @@ private:
   // Private member variables
   static std::atomic<uint32_t> numActiveThreads;
   static std::string evidenceClipBaseUrl;
-  static const size_t frameHeaderSize;
 };
 
 #endif  // #ifndef __EVIDENCE_PROCESSOR_HEADER_H__

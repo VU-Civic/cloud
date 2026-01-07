@@ -8,7 +8,6 @@
 
 std::atomic<uint32_t> EvidenceProcessor::numActiveThreads{0};
 std::string EvidenceProcessor::evidenceClipBaseUrl;
-const size_t EvidenceProcessor::frameHeaderSize = sizeof(EvidenceOpusFrame::frameDelimiter) + sizeof(EvidenceOpusFrame::numEncodedBytes);
 
 void EvidenceProcessor::initialize(void)
 {
@@ -96,8 +95,9 @@ void EvidenceProcessor::processEvidenceWorker(uint32_t deviceID, std::vector<uin
   ope_encoder_ctl(oggEncoder, OPUS_SET_VBR_REQUEST, 1);
 
   // Process the audio data in frames
+  constexpr const size_t frameHeaderSize = offsetof(EvidenceOpusFrame, encodedData);
   size_t samplesRead = fread(&evidenceFrame, 1, frameHeaderSize, evidenceData);
-  while ((samplesRead == frameHeaderSize) && (evidenceFrame.frameDelimiter == EVIDENCE_OPUS_FRAME_DELIMITER))
+  while ((samplesRead == frameHeaderSize) && (evidenceFrame.frameDelimiter == CivicAlert::EVIDENCE_OPUS_FRAME_DELIMITER))
   {
     // Read the next audio frame
     samplesRead = fread(&evidenceFrame.encodedData, 1, evidenceFrame.numEncodedBytes, evidenceData);
