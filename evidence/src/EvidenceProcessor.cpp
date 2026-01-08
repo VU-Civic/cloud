@@ -6,11 +6,17 @@
 #include "AwsServices.h"
 #include "EvidenceProcessor.h"
 
+int EvidenceProcessor::referenceCount = 0;
+std::mutex EvidenceProcessor::initializationMutex;
 std::atomic<uint32_t> EvidenceProcessor::numActiveThreads{0};
 std::string EvidenceProcessor::evidenceClipBaseUrl;
 
 void EvidenceProcessor::initialize(void)
 {
+  // Only allow one complete initialization
+  std::lock_guard<std::mutex> lock(initializationMutex);
+  if (referenceCount++ > 0) return;
+
   // Retrieve the base evidence clip URL from AWS secrets
   evidenceClipBaseUrl = AwsServices::getSecretParameter(CivicAlert::AWS_PARAMETER_KEY_S3_EVIDENCE_URL);
   logger.log(Logger::INFO, "Evidence clip base URL set to: %s\n", evidenceClipBaseUrl.c_str());
@@ -18,6 +24,16 @@ void EvidenceProcessor::initialize(void)
 
 void EvidenceProcessor::cleanup(void)
 {
+  // Only allow one complete cleanup
+  std::lock_guard<std::mutex> lock(initializationMutex);
+  if (--referenceCount > 0) return;
+  if (referenceCount < 0)
+  {
+    // Disallow unmatched uninitializations
+    referenceCount = 0;
+    return;
+  }
+
   // Wait until all active threads have finished processing
   logger.log(Logger::INFO, "Waiting for all active evidence processing threads to finish...\n");
   while (numActiveThreads.load(std::memory_order_relaxed) > 0) std::this_thread::sleep_for(std::chrono::milliseconds(100));

@@ -1,6 +1,7 @@
 #ifndef __AWS_SERVICES_HEADER_H__
 #define __AWS_SERVICES_HEADER_H__
 
+#include <mutex>
 #include "mqtt.h"
 #include "s3.h"
 #include "secrets.h"
@@ -25,6 +26,8 @@ public:
 private:
 
   // Private member variables
+  static int referenceCount;
+  static std::mutex initializationMutex;
   static std::unique_ptr<AwsSecrets> secretManager;
   static std::unique_ptr<AwsS3> s3Client;
   static std::unique_ptr<AwsMQTT> mqttClient;

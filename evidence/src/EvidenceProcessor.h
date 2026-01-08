@@ -1,6 +1,7 @@
 #ifndef __EVIDENCE_PROCESSOR_HEADER_H__
 #define __EVIDENCE_PROCESSOR_HEADER_H__
 
+#include <mutex>
 #include <unordered_map>
 #include <vector>
 
@@ -21,6 +22,8 @@ private:
   static void processEvidenceWorker(uint32_t deviceID, std::vector<uint8_t>&& rawEvidence);
 
   // Private member variables
+  static int referenceCount;
+  static std::mutex initializationMutex;
   static std::atomic<uint32_t> numActiveThreads;
   static std::string evidenceClipBaseUrl;
 };

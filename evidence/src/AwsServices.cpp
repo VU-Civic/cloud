@@ -1,12 +1,18 @@
 #include "AwsServices.h"
 #include "Common.h"
 
+int AwsServices::referenceCount = 0;
+std::mutex AwsServices::initializationMutex;
 std::unique_ptr<AwsS3> AwsServices::s3Client = nullptr;
 std::unique_ptr<AwsMQTT> AwsServices::mqttClient = nullptr;
 std::unique_ptr<AwsSecrets> AwsServices::secretManager = nullptr;
 
 void AwsServices::initialize(void)
 {
+  // Only allow one complete initialization
+  std::lock_guard<std::mutex> lock(initializationMutex);
+  if (referenceCount++ > 0) return;
+
   // Initialize the AWS SDK and create a secrets manager
   logger.log(Logger::INFO, "Configuring AWS clients...\n");
   AWS::initialize();
@@ -41,6 +47,16 @@ void AwsServices::initialize(void)
 
 void AwsServices::cleanup(void)
 {
+  // Only allow one complete cleanup
+  std::lock_guard<std::mutex> lock(initializationMutex);
+  if (--referenceCount > 0) return;
+  if (referenceCount < 0)
+  {
+    // Disallow unmatched uninitializations
+    referenceCount = 0;
+    return;
+  }
+
   // Cleanup AWS SDK and clients
   s3Client.reset();
   mqttClient.reset();
