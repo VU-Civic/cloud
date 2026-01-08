@@ -32,5 +32,8 @@ void Logger::log(LogLevel log_level, const char* __restrict fmt, ...)
     va_start(args, fmt);
     vfprintf(log_file, fmt, args);
     va_end(args);
+
+    // Flush the file to ensure that the log message is written immediately
+    fflush(log_file);
   }
 }
