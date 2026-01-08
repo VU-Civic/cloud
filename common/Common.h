@@ -69,7 +69,7 @@ namespace CivicAlert
   constexpr const unsigned int EVIDENCE_DECODED_FRAME_SAMPLES = (EVIDENCE_AUDIO_SAMPLE_RATE_HZ / 1000) * EVIDENCE_AUDIO_MS_PER_FRAME;
 
   // Process-specific constants
-  constexpr const char* PROCESS_LOG_FILE = "/var/log/civicalert-cloud.log";
+  constexpr const char* PROCESS_LOG_FILE = "/var/log/civicalert/cloud.log";
   constexpr const Logger::LogLevel LOG_MAX_LEVEL = Logger::INFO;
 
   // Weather API parameters
