@@ -31,10 +31,10 @@ int main(void)
   EvidenceProcessor::initialize();
 
   // Subscribe to incoming audio packets over MQTT
-  logger.log(Logger::INFO, "Subscribing to the MQTT evidence topic...");
+  logger.log(Logger::INFO, "Subscribing to the MQTT evidence topic...\n");
   if (!AwsServices::mqttConnect()) exit(EXIT_FAILURE);
   if (!AwsServices::mqttSubscribe(AwsServices::getSecretParameter(CivicAlert::AWS_PARAMETER_KEY_MQTT_AUDIO_EVIDENCE_TOPIC).c_str(), 1)) exit(EXIT_FAILURE);
-  logger.log(Logger::INFO, "MQTT topic subscription complete");
+  logger.log(Logger::INFO, "MQTT topic subscription complete\n");
 
   // Listen for incoming MQTT packets until a termination signal is received
   PacketReceiver::listenForPackets();
