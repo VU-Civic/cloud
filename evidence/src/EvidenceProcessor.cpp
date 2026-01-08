@@ -40,8 +40,10 @@ void EvidenceProcessor::cleanup(void)
 
   // Ensure that all temporary evidence files have been deleted
   logger.log(Logger::INFO, "Cleaning up temporary files...\n");
+  std::vector<std::filesystem::path> temporaryFiles;
   for (const auto& entry : std::filesystem::directory_iterator("/tmp"))
-    if (entry.path().extension() == CivicAlert::EVIDENCE_CLIP_FILE_EXTENSION) std::remove(entry.path().c_str());
+    if (entry.path().extension() == CivicAlert::EVIDENCE_CLIP_FILE_EXTENSION) temporaryFiles.push_back(entry.path());
+  for (const auto& file : temporaryFiles) std::filesystem::remove(file);
 }
 
 void EvidenceProcessor::processEvidenceData(std::unordered_map<uint32_t, std::vector<std::vector<uint8_t>>>::node_type&& evidence)
