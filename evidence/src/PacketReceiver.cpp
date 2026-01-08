@@ -20,6 +20,9 @@ void PacketReceiver::listenForPackets(void)
 
 void PacketReceiver::stopListening(void)
 {
+  // Only stop if the receiver is currently running
+  if (!isRunning.load(std::memory_order_relaxed)) return;
+
   // Stop the packet reception thread and disconnect from the MQTT broker
   logger.log(Logger::INFO, "Stopping the evidence listening thread...\n");
   isRunning.store(false, std::memory_order_relaxed);

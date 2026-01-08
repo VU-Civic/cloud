@@ -19,7 +19,7 @@ MKDIR := @mkdir -p
 RM := @rm -rf
 
 CXXFLAGS := -O3 -march=native -std=c++17 -flto -fno-rtti -ffunction-sections -fdata-sections -Wall -Wextra -I../common -I../common/aws -I../common/general -I/usr/include -I/usr/local/include -I/usr/include/opus -I/usr/include/postgresql -I/opt/homebrew/opt/libpq/include -I/opt/homebrew/include -I/opt/homebrew/include/opus
-LDFLAGS := -Wl,--gc-sections -L/usr/local/lib -L/usr/lib -L/opt/homebrew/lib -L/opt/homebrew/opt/libpq/lib -laws-cpp-sdk-iot -laws-cpp-sdk-ssm -laws-cpp-sdk-secretsmanager -laws-cpp-sdk-s3 -laws-cpp-sdk-sqs -laws-cpp-sdk-core -laws-crt-cpp -laws-c-sdkutils -laws-c-s3 -laws-c-mqtt -laws-c-http -laws-c-compression -laws-c-event-stream -laws-c-auth -laws-checksums -laws-c-common -laws-c-io -laws-c-cal -ls2n -lpq -lopusenc -lopus -lcurl -lcrypto -lz -lpthread
+LDFLAGS := -Wl,-rpath,/usr/local/lib -Wl,--gc-sections -L/usr/local/lib -L/usr/lib -L/opt/homebrew/lib -L/opt/homebrew/opt/libpq/lib -laws-cpp-sdk-iot -laws-cpp-sdk-ssm -laws-cpp-sdk-secretsmanager -laws-cpp-sdk-s3 -laws-cpp-sdk-sqs -laws-cpp-sdk-core -laws-crt-cpp -laws-c-sdkutils -laws-c-s3 -laws-c-mqtt -laws-c-http -laws-c-compression -laws-c-event-stream -laws-c-auth -laws-checksums -laws-c-common -laws-c-io -laws-c-cal -ls2n -lpq -lopusenc -lopus -lcurl -lcrypto -lz -lpthread
 
 
 #### Build Targets ####
