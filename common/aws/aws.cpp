@@ -24,7 +24,7 @@ void AWS::uninitialize(void)
     referenceCount = 0;
     return;
   }
-  Aws::ShutdownAPI(options);
+  // Aws::ShutdownAPI(options);  // Crashes when deinitializing crypto library
 }
 
 std::shared_ptr<Aws::S3::S3Client> AWS::getS3Client(void)
