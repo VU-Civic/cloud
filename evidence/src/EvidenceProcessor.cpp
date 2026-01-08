@@ -174,13 +174,17 @@ void EvidenceProcessor::processEvidenceWorker(uint32_t deviceID, std::vector<uin
   logger.log(Logger::INFO, "Storing evidence clip to AWS S3: %s\n", evidenceClipUrl.c_str());
   if (AwsServices::storeEvidenceClipToS3(fileName.c_str(), localFileName.c_str()))
   {
-    while (!evidenceDatabase->executeQuery("") && !evidenceDatabase->isConnected())
+    deviceID = 1234;  // TODO: For testing only
+    const std::string evidenceUpdateQuery = "WITH last_row AS (SELECT event_id FROM device_alerts WHERE device_id=" + std::to_string(deviceID) +
+                                            " ORDER BY event_id DESC LIMIT 1) UPDATE " + alertTableName + " SET " + CivicAlert::ALERTS_TABLE_EVIDENCE_CLIP_KEY + "='" +
+                                            evidenceClipUrl +
+                                            "' FROM last_row WHERE device_alerts.event_id=last_row.event_id;";  // TODO: FIGURE OUT HOW TO ADD THIS TO THE APPROPRIATE RECORD
+    while (!evidenceDatabase->executeQuery(evidenceUpdateQuery.c_str()) && !evidenceDatabase->isConnected())
     {
       // Attempt to reestablish a lost database connection
       logger.log(Logger::ERROR, "Failed to update evidence database record for Device #%lu\n", deviceID);
       connectToEvidenceDatabase();
     }
-    // TODO: AwsServices::updateEvidenceDatabaseRecord(deviceID, evidenceClipUrl);
   }
   else
     logger.log(Logger::ERROR, "Failed to store clip!\n");
