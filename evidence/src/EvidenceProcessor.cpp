@@ -19,9 +19,11 @@ void EvidenceProcessor::initialize(void)
 void EvidenceProcessor::cleanup(void)
 {
   // Wait until all active threads have finished processing
+  logger.log(Logger::INFO, "Waiting for all active evidence processing threads to finish...\n");
   while (numActiveThreads.load(std::memory_order_relaxed) > 0) std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   // Ensure that all temporary evidence files have been deleted
+  logger.log(Logger::INFO, "Cleaning up temporary files...\n");
   for (const auto& entry : std::filesystem::directory_iterator("/tmp"))
     if (entry.path().extension() == CivicAlert::EVIDENCE_CLIP_FILE_EXTENSION) std::remove(entry.path().c_str());
 }
