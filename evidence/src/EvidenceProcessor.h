@@ -1,9 +1,11 @@
 #ifndef __EVIDENCE_PROCESSOR_HEADER_H__
 #define __EVIDENCE_PROCESSOR_HEADER_H__
 
+#include <memory>
 #include <mutex>
 #include <unordered_map>
 #include <vector>
+#include "PostgreSQL.h"
 
 class EvidenceProcessor final
 {
@@ -18,6 +20,9 @@ public:
 
 private:
 
+  // Helper function to connect to the evidence database
+  static void connectToEvidenceDatabase(void);
+
   // Thread worker functions
   static void processEvidenceWorker(uint32_t deviceID, std::vector<uint8_t>&& rawEvidence);
 
@@ -26,6 +31,8 @@ private:
   static std::mutex initializationMutex;
   static std::atomic<uint32_t> numActiveThreads;
   static std::string evidenceClipBaseUrl;
+  static std::unique_ptr<PostgreSQL> evidenceDatabase;
+  static std::string alertTableName;
 };
 
 #endif  // #ifndef __EVIDENCE_PROCESSOR_HEADER_H__

@@ -43,6 +43,10 @@ namespace CivicAlert
   constexpr const char* AWS_PARAMETER_KEY_SNS_ALERT_TOPIC_ARN = "SnsAlertTopicArn";
   constexpr const char* AWS_PARAMETER_KEY_WEATHER_OPENWEATHERMAP_API_ID = "OpenWeatherMapApiId";
   constexpr const char* AWS_PARAMETER_KEY_WEATHER_TOMORROWIO_API_ID = "TomorrowIoApiId";
+  constexpr const char* AWS_PARAMETER_KEY_DB_SECRETS_KEY = "DbSecretsKey";
+  constexpr const char* AWS_PARAMETER_KEY_DB_ENDPOINT = "DbEndpoint";
+  constexpr const char* AWS_PARAMETER_KEY_DB_PORT = "DbPort";
+  constexpr const char* AWS_PARAMETER_KEY_DB_ALERTS_TABLE = "DbAlertsTable";
 
   // MQTT client settings
   constexpr const char* MQTT_CLOUD_CLIENT_ID = "civicalert-cloud-client";
@@ -50,13 +54,7 @@ namespace CivicAlert
   constexpr const uint32_t MQTT_KEEP_ALIVE_SECONDS = 230;
 
   // Alert database constants
-  constexpr const char* ALERT_DATABASE_NAME = "civicalert_alerts_db";  // TODO: STORE IN PARAMETERS
-  constexpr const char* ALERT_DATABASE_EVENT_ID_KEY = "event_id";
-
-  // Evidence database constants
-  constexpr const char* EVIDENCE_DATABASE_NAME = "civicalert_evidence_db";  // TODO: STORE IN PARAMETERS
-  constexpr const char* EVIDENCE_DATABASE_EVENT_ID_KEY = ALERT_DATABASE_EVENT_ID_KEY;
-  constexpr const char* EVIDENCE_DATABASE_CLIP_URL_KEY = "evidence_clip_url";
+  constexpr const char* DATABASE_NAME = "civicalert";
 
   // Evidence processing parameters
   constexpr const uint8_t EVIDENCE_OPUS_FRAME_DELIMITER = 0xAA;

@@ -10,6 +10,32 @@ int EvidenceProcessor::referenceCount = 0;
 std::mutex EvidenceProcessor::initializationMutex;
 std::atomic<uint32_t> EvidenceProcessor::numActiveThreads{0};
 std::string EvidenceProcessor::evidenceClipBaseUrl;
+std::unique_ptr<PostgreSQL> EvidenceProcessor::evidenceDatabase;
+std::string EvidenceProcessor::alertTableName;
+
+void EvidenceProcessor::connectToEvidenceDatabase(void)
+{
+  // Retrieve the database endpoint, username, and password from AWS secrets
+  std::string dbEndpoint(AwsServices::getSecretParameter(CivicAlert::AWS_PARAMETER_KEY_DB_ENDPOINT));
+  std::string dbSecretsKey(AwsServices::getSecretParameter(CivicAlert::AWS_PARAMETER_KEY_DB_SECRETS_KEY));
+  std::string dbPort(AwsServices::getSecretParameter(CivicAlert::AWS_PARAMETER_KEY_DB_PORT));
+  const auto dbSecrets(AwsServices::getSecret(dbSecretsKey.c_str()));
+  std::string dbUsername(AwsServices::extractSecretValue(dbSecrets, "username"));
+  std::string dbPassword(AwsServices::extractSecretValue(dbSecrets, "password"));
+  if (dbEndpoint.empty() || dbPort.empty() || dbSecretsKey.empty() || dbUsername.empty() || dbPassword.empty())
+  {
+    logger.log(Logger::ERROR, "Database endpoint, port, or secrets parameter is empty...restarting process!\n");
+    exit(EXIT_FAILURE);
+  }
+
+  // Create the database client and attempt to connect
+  evidenceDatabase = std::make_unique<PostgreSQL>(dbEndpoint.c_str(), dbPort.c_str(), CivicAlert::DATABASE_NAME, dbUsername.c_str(), dbPassword.c_str());
+  if (!evidenceDatabase->connect())
+  {
+    logger.log(Logger::ERROR, "Failed to connect to the evidence database...restarting process!\n");
+    exit(EXIT_FAILURE);
+  }
+}
 
 void EvidenceProcessor::initialize(void)
 {
@@ -19,7 +45,11 @@ void EvidenceProcessor::initialize(void)
 
   // Retrieve the base evidence clip URL from AWS secrets
   evidenceClipBaseUrl = AwsServices::getSecretParameter(CivicAlert::AWS_PARAMETER_KEY_S3_EVIDENCE_URL);
+  alertTableName = AwsServices::getSecretParameter(CivicAlert::AWS_PARAMETER_KEY_DB_ALERTS_TABLE);
   logger.log(Logger::INFO, "Evidence clip base URL set to: %s\n", evidenceClipBaseUrl.c_str());
+
+  // Establish a connection to the evidence database
+  connectToEvidenceDatabase();
 }
 
 void EvidenceProcessor::cleanup(void)
@@ -144,6 +174,12 @@ void EvidenceProcessor::processEvidenceWorker(uint32_t deviceID, std::vector<uin
   logger.log(Logger::INFO, "Storing evidence clip to AWS S3: %s\n", evidenceClipUrl.c_str());
   if (AwsServices::storeEvidenceClipToS3(fileName.c_str(), localFileName.c_str()))
   {
+    while (!evidenceDatabase->executeQuery("") && !evidenceDatabase->isConnected())
+    {
+      // Attempt to reestablish a lost database connection
+      logger.log(Logger::ERROR, "Failed to update evidence database record for Device #%lu\n", deviceID);
+      connectToEvidenceDatabase();
+    }
     // TODO: AwsServices::updateEvidenceDatabaseRecord(deviceID, evidenceClipUrl);
   }
   else

@@ -40,6 +40,8 @@ void PostgreSQL::disconnect()
   }
 }
 
+bool PostgreSQL::isConnected() { return connection && (PQstatus(connection) == CONNECTION_OK); }
+
 bool PostgreSQL::executeQuery(const char* query)
 {
   // Ensure there is an active connection

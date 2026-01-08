@@ -14,6 +14,7 @@ public:
   // Connection management
   bool connect();
   void disconnect();
+  bool isConnected();
 
   // Typical database operations
   bool executeQuery(const char* query);
