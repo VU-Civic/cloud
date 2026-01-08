@@ -49,7 +49,7 @@ void PacketReceiver::packetReceptionThread(void)
     const auto receivedMessage = AwsServices::mqttReceive();
     if ((receivedMessage.size() >= offsetof(EvidenceMessage, data)) && (receivedMessage.size() <= sizeof(EvidenceMessage)))
       processPacket(reinterpret_cast<const EvidenceMessage*>(receivedMessage.data()), receivedMessage.size());
-    else
+    else if (isRunning.load(std::memory_order_relaxed))
       logger.log(Logger::WARNING, "Received MQTT packet of incorrect size (%zu bytes)\n", receivedMessage.size());
   }
 }
