@@ -56,7 +56,6 @@ namespace CivicAlert
   // Alert database constants
   constexpr const char* DATABASE_NAME = "civicalert";
   constexpr const char* DB_EVIDENCE_CLIP_TABLE_NAME = "evidence_clips";
-  constexpr const uint32_t DB_EVIDENCE_CLIP_STALE_TIMESTAMP_SECONDS = 60;
 
   // Evidence processing parameters
   constexpr const uint8_t EVIDENCE_OPUS_FRAME_DELIMITER = 0xAA;

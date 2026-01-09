@@ -9,7 +9,6 @@
 int EvidenceProcessor::referenceCount = 0;
 std::mutex EvidenceProcessor::initializationMutex;
 std::atomic<uint32_t> EvidenceProcessor::numActiveThreads{0};
-std::string EvidenceProcessor::evidenceClipBaseUrl;
 std::unique_ptr<PostgreSQL> EvidenceProcessor::evidenceDatabase;
 std::string EvidenceProcessor::alertTableName;
 
@@ -44,12 +43,8 @@ void EvidenceProcessor::initialize(void)
   std::lock_guard<std::mutex> lock(initializationMutex);
   if (referenceCount++ > 0) return;
 
-  // Retrieve the base evidence clip URL from AWS secrets
-  evidenceClipBaseUrl = AwsServices::getSecretParameter(CivicAlert::AWS_PARAMETER_KEY_S3_EVIDENCE_URL);
-  alertTableName = AwsServices::getSecretParameter(CivicAlert::AWS_PARAMETER_KEY_DB_ALERTS_TABLE);
-  logger.log(Logger::INFO, "Evidence clip base URL set to: %s\n", evidenceClipBaseUrl.c_str());
-
   // Establish a connection to the evidence database
+  alertTableName = AwsServices::getSecretParameter(CivicAlert::AWS_PARAMETER_KEY_DB_ALERTS_TABLE);
   connectToEvidenceDatabase();
 }
 
@@ -178,16 +173,15 @@ void EvidenceProcessor::processEvidenceWorker(uint32_t deviceID, uint8_t clipID,
   fclose(evidenceData);
 
   // Store the evidence clip into S3 and update the database record
-  const std::string evidenceClipUrl = evidenceClipBaseUrl + fileName;
-  logger.log(Logger::INFO, "Storing evidence clip to AWS S3: %s\n", evidenceClipUrl.c_str());
+  logger.log(Logger::INFO, "Storing evidence clip to AWS S3: %s\n", fileName.c_str());
   if (AwsServices::storeEvidenceClipToS3(fileName.c_str(), localFileName.c_str()))
   {
-    const uint32_t staleTimestamp = static_cast<uint32_t>(time(nullptr)) - CivicAlert::DB_EVIDENCE_CLIP_STALE_TIMESTAMP_SECONDS;
-    const std::string evidenceUpdateQuery = std::string("COALESCE((SELECT id FROM ") + std::string(CivicAlert::DB_EVIDENCE_CLIP_TABLE_NAME) + std::string(" WHERE device_id=") +
-                                            std::to_string(deviceID) + std::string(" AND clip_locator_id=") + std::to_string(clipID) + std::string(" AND clip_timestamp>") +
-                                            std::to_string(staleTimestamp) + std::string("),(INSERT INTO ") + std::string(CivicAlert::DB_EVIDENCE_CLIP_TABLE_NAME) +
-                                            std::string(" (device_id, clip_locator_id, file_name) VALUES (") + std::to_string(deviceID) + std::string(", ") +
-                                            std::to_string(clipID) + std::string(", '") + fileName + std::string("') RETURNING id));");
+    const std::string evidenceUpdateQuery = std::string("WITH updated AS(UPDATE ") + std::string(CivicAlert::DB_EVIDENCE_CLIP_TABLE_NAME) + std::string(" SET file_name='") +
+                                            fileName + std::string("' WHERE device_id=") + std::to_string(deviceID) + std::string(" AND clip_locator_id=") +
+                                            std::to_string(clipID) + std::string(" AND clip_timestamp>NOW() - INTERVAL '1 minute' RETURNING *) INSERT INTO ") +
+                                            std::string(CivicAlert::DB_EVIDENCE_CLIP_TABLE_NAME) + std::string(" (device_id, clip_locator_id, file_name) SELECT ") +
+                                            std::to_string(deviceID) + std::string(", ") + std::to_string(clipID) + std::string(", '") + fileName +
+                                            std::string("' WHERE NOT EXISTS (SELECT 1 FROM updated);");
     while (!evidenceDatabase->executeQuery(evidenceUpdateQuery.c_str()) && !evidenceDatabase->isConnected())
     {
       // Attempt to reestablish a lost database connection
