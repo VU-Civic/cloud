@@ -3,7 +3,7 @@
 BUILD := bin
 
 SRC := 
-COMMON_SRC := Common.cpp aws.cpp mqtt.cpp s3.cpp secrets.cpp sqs.cpp Logger.cpp PostgreSQL.cpp CivicAlertDB.cpp
+COMMON_SRC := Common.cpp aws.cpp mqtt.cpp s3.cpp secrets.cpp sqs.cpp Logger.cpp PostgreSQL.cpp
 VPATH := . ../common ../common/aws ../common/general
 OBJECTS := $(COMMON_SRC:%.cpp=$(BUILD)/%.o) $(SRC:%.cpp=$(BUILD)/%.o)
 
@@ -24,11 +24,6 @@ AWS_SRC := test_aws.cpp
 AWS_OBJ := $(AWS_SRC:%.cpp=$(BUILD)/%.o) $(OBJECTS)
 aws: $(BUILD) $(AWS_OBJ)
 	$(CXX) $(CXXFLAGS) -o $(BUILD)/aws $(AWS_OBJ) $(LDFLAGS)
-
-DB_SRC := test_db.cpp
-DB_OBJ := $(DB_SRC:%.cpp=$(BUILD)/%.o) $(OBJECTS)
-db: $(BUILD) $(DB_OBJ)
-	$(CXX) $(CXXFLAGS) -o $(BUILD)/db $(DB_OBJ) $(LDFLAGS)
 
 $(BUILD):
 	$(MKDIR) $@

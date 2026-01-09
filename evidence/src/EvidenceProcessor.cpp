@@ -35,6 +35,7 @@ void EvidenceProcessor::connectToEvidenceDatabase(void)
     logger.log(Logger::ERROR, "Failed to connect to the evidence database...restarting process!\n");
     exit(EXIT_FAILURE);
   }
+  evidenceDatabase->executeQuery("SET search_path TO public;");
 }
 
 void EvidenceProcessor::initialize(void)

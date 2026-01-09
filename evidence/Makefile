@@ -46,7 +46,7 @@ setup:
 		./configure && make && sudo make install && cd .. && rm -rf libopusenc-0.3 libopusenc-0.3.tar.gz; \
 		echo -e "function civicalertdb() {\n   DB_URL=\$(aws ssm get-parameter --name DbEndpoint --query Parameter --output json | jq -r '.Value')\n   SECRETS=\$(aws secretsmanager get-secret-value --secret-id 'rds"'!'"db-bfd5b244-8d9b-45c6-be4e-9d6482fedb5a' --query SecretString --output text)\n   UNAME=\$(echo \$SECRETS | jq -r '.username')\n   PASS=\$(echo \$SECRETS | jq -r '.password')\n   PGPASSWORD=\$PASS psql -h \$DB_URL -U \$UNAME -d civicalert\n}" >> ~/.bashrc; \
 	elif [ -n "$(BREW_EXISTS)" ]; then \
-		brew install make g++ opus libogg rapidjson libpq aws-sdk-cpp postgresql@17; \
+		brew install make g++ opus libogg rapidjson libpq aws-sdk-cpp postgresql; \
 	fi
 
 $(BUILD):
