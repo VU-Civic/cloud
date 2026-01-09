@@ -69,6 +69,13 @@ void EvidenceProcessor::cleanup(void)
   logger.log(Logger::INFO, "Waiting for all active evidence processing threads to finish...\n");
   while (numActiveThreads.load(std::memory_order_relaxed) > 0) std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
+  // Clean up the database connection
+  if (evidenceDatabase)
+  {
+    evidenceDatabase->disconnect();
+    evidenceDatabase.reset();
+  }
+
   // Ensure that all temporary evidence files have been deleted
   logger.log(Logger::INFO, "Cleaning up temporary files...\n");
   std::vector<std::filesystem::path> temporaryFiles;
