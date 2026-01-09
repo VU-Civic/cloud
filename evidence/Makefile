@@ -4,7 +4,7 @@ BUILD := bin
 TARGET := EvidenceCollector
 
 SRC := main.cpp AwsServices.cpp EvidenceProcessor.cpp PacketReceiver.cpp
-COMMON_SRC := Common.cpp aws.cpp mqtt.cpp s3.cpp secrets.cpp sqs.cpp Logger.cpp PostgreSQL.cpp CivicAlertDB.cpp ProcessUtils.cpp
+COMMON_SRC := Common.cpp aws.cpp mqtt.cpp s3.cpp secrets.cpp sqs.cpp Logger.cpp PostgreSQL.cpp ProcessUtils.cpp
 VPATH := . ../common ../common/aws ../common/general src
 OBJECTS := $(COMMON_SRC:%.cpp=$(BUILD)/%.o) $(SRC:%.cpp=$(BUILD)/%.o)
 
