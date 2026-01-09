@@ -45,4 +45,3 @@ int main(void)
 }
 
 // TODO: Use CloudWatch (https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Agent-Configuration-File-Details.html)
-// TODO: Ensure this is started with a process monitor to automatically restart on failure

@@ -55,7 +55,14 @@ $(BUILD):
 $(BUILD)/%.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+install:
+	@sudo cp $(BUILD)/$(TARGET) /usr/local/bin/$(TARGET)
+	@echo -e "[Unit]\nDescription=CivicAlert Evidence Collector\nAfter=network.target\n\n[Service]\nExecStart=/usr/local/bin/$(TARGET)\nRestart=always\nRestartSec=5s\nUser=ec2-user\nGroup=ec2-user\n\n[Install]\nWantedBy=multi-user.target\n" | sudo tee /usr/lib/systemd/system/civicalert.service > /dev/null
+	@sudo systemctl daemon-reload
+	@sudo systemctl enable civicalert.service
+	@sudo systemctl start civicalert.service
+
 clean:
 	-$(RM) $(BUILD)
 
-.PHONY: all setup clean
+.PHONY: all setup install clean
