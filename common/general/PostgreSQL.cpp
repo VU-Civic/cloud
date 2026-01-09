@@ -13,8 +13,8 @@ PostgreSQL::~PostgreSQL() { disconnect(); }
 bool PostgreSQL::connect()
 {
   // Attempt to establish a database connection
-  logger.log(Logger::INFO, "Connecting to PostgreSQL database at %s:%s/%s as user %s\n", db_ip, db_port, db_name, db_user);
-  connection = PQsetdbLogin(db_ip, db_port, nullptr, nullptr, db_name, db_user, db_password);
+  logger.log(Logger::INFO, "Connecting to PostgreSQL database at %s:%s/%s as user %s\n", db_ip.c_str(), db_port.c_str(), db_name.c_str(), db_user.c_str());
+  connection = PQsetdbLogin(db_ip.c_str(), db_port.c_str(), nullptr, nullptr, db_name.c_str(), db_user.c_str(), db_password.c_str());
   if (PQstatus(connection) != CONNECTION_OK)
   {
     logger.log(Logger::ERROR, "PostgreSQL connection failed: %s\n", PQerrorMessage(connection));
@@ -34,7 +34,7 @@ void PostgreSQL::disconnect()
   // Disconnect if a connection exists
   if (connection)
   {
-    logger.log(Logger::INFO, "Disconnecting from PostgreSQL database at %s:%s/%s\n", db_ip, db_port, db_name);
+    logger.log(Logger::INFO, "Disconnecting from PostgreSQL database at %s:%s/%s\n", db_ip.c_str(), db_port.c_str(), db_name.c_str());
     PQfinish(connection);
     connection = nullptr;
   }

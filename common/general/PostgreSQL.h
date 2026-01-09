@@ -1,6 +1,7 @@
 #ifndef __POSTGRESQL_HEADER_H__
 #define __POSTGRESQL_HEADER_H__
 
+#include <string>
 #include <libpq-fe.h>
 
 class PostgreSQL final
@@ -23,7 +24,7 @@ public:
 private:
 
   // Member variables
-  const char *db_ip, *db_port, *db_name, *db_user, *db_password;
+  std::string db_ip, db_port, db_name, db_user, db_password;
   PGconn* connection;
 };
 
