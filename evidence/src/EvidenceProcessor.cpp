@@ -84,7 +84,7 @@ void EvidenceProcessor::cleanup(void)
   for (const auto& file : temporaryFiles) std::filesystem::remove(file);
 }
 
-void EvidenceProcessor::processEvidenceData(std::unordered_map<uint32_t, std::vector<std::vector<uint8_t>>>::node_type&& evidence)
+void EvidenceProcessor::processEvidenceData(uint8_t clipID, std::unordered_map<uint32_t, std::vector<std::vector<uint8_t>>>::node_type&& evidence)
 {
   // Retrieve the device ID and associated evidence data
   size_t evidenceDataLength = 0;
@@ -99,11 +99,11 @@ void EvidenceProcessor::processEvidenceData(std::unordered_map<uint32_t, std::ve
 
   // Start a new detached thread to process the evidence data
   numActiveThreads.fetch_add(1, std::memory_order_relaxed);
-  std::thread worker(&EvidenceProcessor::processEvidenceWorker, deviceID, std::move(flattenedEvidence));
+  std::thread worker(&EvidenceProcessor::processEvidenceWorker, deviceID, clipID, std::move(flattenedEvidence));
   worker.detach();
 }
 
-void EvidenceProcessor::processEvidenceWorker(uint32_t deviceID, std::vector<uint8_t>&& rawEvidence)
+void EvidenceProcessor::processEvidenceWorker(uint32_t deviceID, uint8_t clipID, std::vector<uint8_t>&& rawEvidence)
 {
   // Open a memory stream for reading the raw evidence data
   EvidenceOpusFrame evidenceFrame;
@@ -111,7 +111,7 @@ void EvidenceProcessor::processEvidenceWorker(uint32_t deviceID, std::vector<uin
   FILE* evidenceData = fmemopen(rawEvidence.data(), rawEvidence.size(), "rb");
   if (!evidenceData)
   {
-    logger.log(Logger::ERROR, "Failed to open evidence data stream for Device #%lu\n", deviceID);
+    logger.log(Logger::ERROR, "Failed to open evidence data stream for Device #%lu, Clip #%u\n", deviceID, clipID);
     numActiveThreads.fetch_sub(1, std::memory_order_relaxed);
     return;
   }
@@ -182,14 +182,16 @@ void EvidenceProcessor::processEvidenceWorker(uint32_t deviceID, std::vector<uin
   logger.log(Logger::INFO, "Storing evidence clip to AWS S3: %s\n", evidenceClipUrl.c_str());
   if (AwsServices::storeEvidenceClipToS3(fileName.c_str(), localFileName.c_str()))
   {
-    const std::string evidenceUpdateQuery = "WITH last_row AS (SELECT event_id FROM device_alerts WHERE device_id=" + std::to_string(deviceID) +
-                                            " ORDER BY event_id DESC LIMIT 1) UPDATE " + alertTableName + " SET " + CivicAlert::ALERTS_TABLE_EVIDENCE_CLIP_KEY + "='" +
-                                            evidenceClipUrl +
-                                            "' FROM last_row WHERE device_alerts.event_id=last_row.event_id;";  // TODO: FIGURE OUT HOW TO ADD THIS TO THE APPROPRIATE RECORD
+    const uint32_t staleTimestamp = static_cast<uint32_t>(time(nullptr)) - CivicAlert::DB_EVIDENCE_CLIP_STALE_TIMESTAMP_SECONDS;
+    const std::string evidenceUpdateQuery = std::string("COALESCE((SELECT id FROM ") + std::string(CivicAlert::DB_EVIDENCE_CLIP_TABLE_NAME) + std::string(" WHERE device_id=") +
+                                            std::to_string(deviceID) + std::string(" AND clip_locator_id=") + std::to_string(clipID) + std::string(" AND clip_timestamp>") +
+                                            std::to_string(staleTimestamp) + std::string("),(INSERT INTO ") + std::string(CivicAlert::DB_EVIDENCE_CLIP_TABLE_NAME) +
+                                            std::string(" (device_id, clip_locator_id, file_name) VALUES (") + std::to_string(deviceID) + std::string(", ") +
+                                            std::to_string(clipID) + std::string(", '") + fileName + std::string("') RETURNING id));");
     while (!evidenceDatabase->executeQuery(evidenceUpdateQuery.c_str()) && !evidenceDatabase->isConnected())
     {
       // Attempt to reestablish a lost database connection
-      logger.log(Logger::ERROR, "Failed to update evidence database record for Device #%lu\n", deviceID);
+      logger.log(Logger::ERROR, "Failed to update evidence database record for Device #%lu, Clip #%u\n", deviceID, clipID);
       connectToEvidenceDatabase();
     }
   }

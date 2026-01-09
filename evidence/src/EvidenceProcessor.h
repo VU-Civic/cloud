@@ -16,7 +16,7 @@ public:
   static void cleanup(void);
 
   // Evidence processing functions
-  static void processEvidenceData(std::unordered_map<uint32_t, std::vector<std::vector<uint8_t>>>::node_type&& evidence);
+  static void processEvidenceData(uint8_t clipID, std::unordered_map<uint32_t, std::vector<std::vector<uint8_t>>>::node_type&& evidence);
 
 private:
 
@@ -24,7 +24,7 @@ private:
   static void connectToEvidenceDatabase(void);
 
   // Thread worker functions
-  static void processEvidenceWorker(uint32_t deviceID, std::vector<uint8_t>&& rawEvidence);
+  static void processEvidenceWorker(uint32_t deviceID, uint8_t clipID, std::vector<uint8_t>&& rawEvidence);
 
   // Private member variables
   static int referenceCount;

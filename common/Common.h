@@ -13,7 +13,7 @@ extern Logger logger;
 typedef struct __attribute__((__packed__))
 {
   uint32_t deviceID;
-  uint8_t messageIdxAndFinal;
+  uint8_t clipID, messageIdxAndFinal;
   uint8_t data[MQTT_MAX_PAYLOAD_SIZE_BYTES];
 } EvidenceMessage;
 
@@ -55,7 +55,8 @@ namespace CivicAlert
 
   // Alert database constants
   constexpr const char* DATABASE_NAME = "civicalert";
-  constexpr const char* ALERTS_TABLE_EVIDENCE_CLIP_KEY = "evidence_clip";
+  constexpr const char* DB_EVIDENCE_CLIP_TABLE_NAME = "evidence_clips";
+  constexpr const uint32_t DB_EVIDENCE_CLIP_STALE_TIMESTAMP_SECONDS = 60;
 
   // Evidence processing parameters
   constexpr const uint8_t EVIDENCE_OPUS_FRAME_DELIMITER = 0xAA;
@@ -69,6 +70,7 @@ namespace CivicAlert
 
   // Process-specific constants
   constexpr const char* PROCESS_LOG_FILE = "/var/log/civicalert/cloud.log";
+  constexpr const char* LOG_FILE_ROTATION_PATH = "/var/log/civicalert/to_upload/";
   constexpr const Logger::LogLevel LOG_MAX_LEVEL = Logger::INFO;
 
   // Weather API parameters

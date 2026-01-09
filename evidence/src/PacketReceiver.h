@@ -6,6 +6,14 @@
 #include <tuple>
 #include <unordered_map>
 
+typedef struct
+{
+  std::thread timerThread;
+  int32_t elapsedSeconds;
+  bool isFinalPacketReceived;
+  bool isProcessingStarted;
+} ReceptionTimerInfo;
+
 class PacketReceiver final
 {
 public:
@@ -18,7 +26,7 @@ private:
 
   // Thread and processing functions
   static void packetReceptionThread(void);
-  static void receptionTimeoutThread(uint32_t deviceID);
+  static void receptionTimeoutThread(uint32_t deviceID, uint8_t clipID);
   static void processPacket(const EvidenceMessage* packet, uint32_t packetLength);
 
   // Private member variables
@@ -26,7 +34,7 @@ private:
   static std::thread receiveThread;
   static std::mutex receptionTimerMutex;
   static std::unordered_map<uint32_t, std::vector<std::vector<uint8_t>>> packetBuffer;
-  static std::unordered_map<uint32_t, std::tuple<std::thread, int32_t, bool, bool>> receptionTimers;
+  static std::unordered_map<uint32_t, ReceptionTimerInfo> receptionTimers;
 };
 
 #endif  // #ifndef __PACKET_RECEIVER_HEADER_H__
