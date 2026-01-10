@@ -9,7 +9,7 @@ class PostgreSQL final
 public:
 
   // Constructor/destructor
-  PostgreSQL(const char* host_ip, const char* host_port, const char* host_db_name, const char* username, const char* password);
+  PostgreSQL(const char* hostIp, const char* hostPort, const char* hostDbName, const char* username, const char* password);
   ~PostgreSQL();
 
   // Connection management
@@ -18,13 +18,13 @@ public:
   bool isConnected();
 
   // Typical database operations
-  bool executeQuery(const char* query);
-  bool executeQueryWithResponse(const char* query, PGresult** result);
+  bool executeQuery(const char* __restrict query);
+  bool executeQueryWithResponse(const char* __restrict query, PGresult** __restrict result);
 
 private:
 
   // Member variables
-  std::string db_ip, db_port, db_name, db_user, db_password;
+  std::string dbIp, dbPort, dbName, dbUser, dbPassword;
   PGconn* connection;
 };
 

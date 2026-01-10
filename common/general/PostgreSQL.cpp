@@ -3,8 +3,8 @@
 
 extern Logger logger;
 
-PostgreSQL::PostgreSQL(const char* host_ip, const char* host_port, const char* host_db_name, const char* username, const char* password)
-    : db_ip(host_ip), db_port(host_port), db_name(host_db_name), db_user(username), db_password(password), connection(nullptr)
+PostgreSQL::PostgreSQL(const char* hostIp, const char* hostPort, const char* hostDbName, const char* username, const char* password)
+    : dbIp(hostIp), dbPort(hostPort), dbName(hostDbName), dbUser(username), dbPassword(password), connection(nullptr)
 {
 }
 
@@ -13,8 +13,8 @@ PostgreSQL::~PostgreSQL() { disconnect(); }
 bool PostgreSQL::connect()
 {
   // Attempt to establish a database connection
-  logger.log(Logger::INFO, "Connecting to PostgreSQL database at %s:%s/%s as user %s\n", db_ip.c_str(), db_port.c_str(), db_name.c_str(), db_user.c_str());
-  connection = PQsetdbLogin(db_ip.c_str(), db_port.c_str(), nullptr, nullptr, db_name.c_str(), db_user.c_str(), db_password.c_str());
+  logger.log(Logger::INFO, "Connecting to PostgreSQL database at %s:%s/%s as user %s\n", dbIp.c_str(), dbPort.c_str(), dbName.c_str(), dbUser.c_str());
+  connection = PQsetdbLogin(dbIp.c_str(), dbPort.c_str(), nullptr, nullptr, dbName.c_str(), dbUser.c_str(), dbPassword.c_str());
   if (PQstatus(connection) != CONNECTION_OK)
   {
     logger.log(Logger::ERROR, "PostgreSQL connection failed: %s\n", PQerrorMessage(connection));
@@ -34,7 +34,7 @@ void PostgreSQL::disconnect()
   // Disconnect if a connection exists
   if (connection)
   {
-    logger.log(Logger::INFO, "Disconnecting from PostgreSQL database at %s:%s/%s\n", db_ip.c_str(), db_port.c_str(), db_name.c_str());
+    logger.log(Logger::INFO, "Disconnecting from PostgreSQL database at %s:%s/%s\n", dbIp.c_str(), dbPort.c_str(), dbName.c_str());
     PQfinish(connection);
     connection = nullptr;
   }
@@ -42,7 +42,7 @@ void PostgreSQL::disconnect()
 
 bool PostgreSQL::isConnected() { return connection && (PQstatus(connection) == CONNECTION_OK); }
 
-bool PostgreSQL::executeQuery(const char* query)
+bool PostgreSQL::executeQuery(const char* __restrict query)
 {
   // Ensure there is an active connection
   if (!connection)
@@ -65,7 +65,7 @@ bool PostgreSQL::executeQuery(const char* query)
   return true;
 }
 
-bool PostgreSQL::executeQueryWithResponse(const char* query, PGresult** result)
+bool PostgreSQL::executeQueryWithResponse(const char* __restrict query, PGresult** __restrict result)
 {
   // Ensure there is an active connection
   if (!connection)
