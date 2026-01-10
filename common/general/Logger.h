@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 #include <string>
 
 class Logger final
@@ -20,18 +21,21 @@ public:
   };
 
   // Construction and destruction
-  Logger(const char* __restrict log_file_path, LogLevel max_log_level);
+  Logger(const char* logFilePath, LogLevel maxLogLevel);
   ~Logger(void);
 
   // Logging functionality
-  void log(LogLevel log_level, const char* __restrict fmt, ...);
+  void log(LogLevel logLevel, const char* __restrict fmt, ...);
+  void rotate(const char* oldLogFileNewPath);
 
 private:
 
   // Private variables
-  LogLevel max_log_level;
-  char time_string[25];
-  FILE* log_file;
+  std::atomic_flag inUse;
+  std::string logPath;
+  LogLevel maxLogLevel;
+  char timeString[25];
+  FILE* logFile;
 };
 
 #endif  // #ifndef __LOGGER_HEADER_H__
