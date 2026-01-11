@@ -8,7 +8,7 @@
 Logger logger(CivicAlert::PROCESS_LOG_FILE, CivicAlert::LOG_MAX_LEVEL);
 
 // Cleanup routine to be called upon application termination
-void globalCleanup(void)
+static void globalCleanup(void)
 {
   // Stop all running tasks
   logger.log(Logger::INFO, "Application shutting down...\n");
@@ -30,6 +30,9 @@ int main(void)
   AwsServices::initialize();
   EvidenceProcessor::initialize();
 
+  // Enable log file rotation
+  logger.enableRotation(CivicAlert::LOG_FILE_ROTATION_DIRECTORY, CivicAlert::LOG_FILE_ROTATION_INTERVAL_SECONDS);
+
   // Subscribe to incoming audio packets over MQTT
   logger.log(Logger::INFO, "Subscribing to the MQTT evidence topic...\n");
   if (!AwsServices::mqttConnect()) exit(EXIT_FAILURE);
@@ -44,4 +47,6 @@ int main(void)
   return EXIT_SUCCESS;
 }
 
-// TODO: Use CloudWatch (https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Agent-Configuration-File-Details.html)
+// TODO: Make packet storage queues clipID-aware
+// TODO: Test CloudWatch (https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Agent-Configuration-File-Details.html)
+// TODO: Test log rotation

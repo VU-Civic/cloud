@@ -6,6 +6,7 @@
 #include <cstring>
 #include <memory>
 #include <string>
+#include <thread>
 
 class Logger final
 {
@@ -26,16 +27,28 @@ public:
 
   // Logging functionality
   void log(LogLevel logLevel, const char* __restrict fmt, ...);
-  void rotate(const char* oldLogFileNewPath);
+  void enableRotation(const char* rotationDestination, uint32_t rotationIntervalSeconds);
+  void disableRotation(void);
 
 private:
 
-  // Private variables
+  // Log rotation functions
+  void rotate(const char* newPath);
+  void logRotationWorker(void);
+
+  // Private logging variables
   std::atomic_flag inUse;
   std::string logPath;
   LogLevel maxLogLevel;
   char timeString[25];
   FILE* logFile;
+
+  // Private rotation variables
+  std::thread rotationThread;
+  std::atomic<bool> rotationRunning;
+  std::condition_variable terminateRotation;
+  std::string rotationPath;
+  uint32_t rotationInterval;
 };
 
 #endif  // #ifndef __LOGGER_HEADER_H__

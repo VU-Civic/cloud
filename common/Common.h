@@ -25,6 +25,8 @@ typedef struct __attribute__((__packed__, aligned(4)))
   uint8_t encodedData[EVIDENCE_OPUS_FRAME_MAX_BYTES];
 } EvidenceOpusFrame;
 
+#define CONCAT_STRINGS(str1, str2) str1 str2
+
 namespace CivicAlert
 {
   // AWS Parameter and Secrets Manager keys
@@ -67,9 +69,12 @@ namespace CivicAlert
   constexpr const unsigned int EVIDENCE_AUDIO_MS_PER_FRAME = 20;
   constexpr const unsigned int EVIDENCE_DECODED_FRAME_SAMPLES = (EVIDENCE_AUDIO_SAMPLE_RATE_HZ / 1000) * EVIDENCE_AUDIO_MS_PER_FRAME;
 
-  // Process-specific constants
-  constexpr const char* PROCESS_LOG_FILE = "/var/log/civicalert/cloud.log";
-  constexpr const char* LOG_FILE_ROTATION_PATH = "/var/log/civicalert/to_upload/";
+// Process-specific constants
+#define LOG_FILE_PATH "/var/log/civicalert/"
+  constexpr const char* PROCESS_LOG_PATH = LOG_FILE_PATH;
+  constexpr const char* PROCESS_LOG_FILE = CONCAT_STRINGS(LOG_FILE_PATH, "cloud.log");
+  constexpr const char* LOG_FILE_ROTATION_DIRECTORY = CONCAT_STRINGS(LOG_FILE_PATH, "to_upload/");
+  constexpr const uint32_t LOG_FILE_ROTATION_INTERVAL_SECONDS = 1800;
   constexpr const Logger::LogLevel LOG_MAX_LEVEL = Logger::INFO;
 
   // Weather API parameters
