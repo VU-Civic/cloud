@@ -4,7 +4,7 @@
   "editor.defaultFormatter": "ms-vscode.cpptools",
   "editor.tabSize": 2,
   "editor.autoIndentOnPaste": true,
-  "editor.wordWrapColumn": 120,
+  "editor.wordWrapColumn": 180,
   "editor.formatOnPaste": true,
   "files.insertFinalNewline": true
 }
