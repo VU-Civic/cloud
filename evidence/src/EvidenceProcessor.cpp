@@ -79,11 +79,10 @@ void EvidenceProcessor::cleanup(void)
   for (const auto& file : temporaryFiles) std::filesystem::remove(file);
 }
 
-void EvidenceProcessor::processEvidenceData(uint8_t clipID, std::unordered_map<uint32_t, std::vector<std::vector<uint8_t>>>::node_type&& evidence)
+void EvidenceProcessor::processEvidenceData(uint32_t deviceID, uint8_t clipID, std::unordered_map<uint64_t, std::vector<std::vector<uint8_t>>>::node_type&& evidence)
 {
-  // Retrieve the device ID and associated evidence data
+  // Compute the total byte length of the evidence data
   size_t evidenceDataLength = 0;
-  const uint32_t deviceID = evidence.key();
   const auto& evidenceData = evidence.mapped();
   for (const auto& chunk : evidenceData) evidenceDataLength += chunk.size();
 

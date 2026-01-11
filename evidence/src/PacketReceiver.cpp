@@ -7,8 +7,8 @@
 std::atomic<bool> PacketReceiver::isRunning(false);
 std::thread PacketReceiver::receiveThread;
 std::mutex PacketReceiver::receptionTimerMutex;
-std::unordered_map<uint32_t, std::vector<std::vector<uint8_t>>> PacketReceiver::packetBuffer;
-std::unordered_map<uint32_t, ReceptionTimerInfo> PacketReceiver::receptionTimers;
+std::unordered_map<uint64_t, std::vector<std::vector<uint8_t>>> PacketReceiver::packetBuffer;
+std::unordered_map<uint64_t, ReceptionTimerInfo> PacketReceiver::receptionTimers;
 
 void PacketReceiver::listenForPackets(void)
 {
@@ -54,7 +54,7 @@ void PacketReceiver::packetReceptionThread(void)
   }
 }
 
-void PacketReceiver::receptionTimeoutThread(uint32_t deviceID, uint8_t clipID)
+void PacketReceiver::receptionTimeoutThread(uint64_t deviceClipID, uint32_t deviceID, uint8_t clipID)
 {
   // Loop forever until reception times out or the program is terminated
   bool timedOut = false;
@@ -63,26 +63,26 @@ void PacketReceiver::receptionTimeoutThread(uint32_t deviceID, uint8_t clipID)
     // Sleep for one second and increment the timer count
     std::this_thread::sleep_for(std::chrono::seconds(1));
     std::lock_guard<std::mutex> receptionLock(receptionTimerMutex);
-    const int32_t timerCount = receptionTimers[deviceID].elapsedSeconds;
+    const int32_t timerCount = receptionTimers[deviceClipID].elapsedSeconds;
     if ((timerCount >= 0) && (timerCount < CivicAlert::EVIDENCE_PROCESSING_TIMEOUT_SECONDS))
-      receptionTimers[deviceID].elapsedSeconds++;
+      receptionTimers[deviceClipID].elapsedSeconds++;
     else
       timedOut = true;
   }
 
   // Force processing of any received packets if timed out without all packets being received
   std::lock_guard<std::mutex> receptionLock(receptionTimerMutex);
-  if (timedOut && !receptionTimers[deviceID].isProcessingStarted)
+  if (timedOut && !receptionTimers[deviceClipID].isProcessingStarted)
   {
     // Fill in missing packets with empty data and process the received packets
     logger.log(Logger::WARNING, "Reception timed out for Clip #%u from Device #%lu, processing received packets...\n", clipID, deviceID);
-    for (auto& packet : packetBuffer[deviceID])
+    for (auto& packet : packetBuffer[deviceClipID])
       if (packet.empty())
       {
         packet.emplace_back(CivicAlert::EVIDENCE_OPUS_FRAME_DELIMITER);
         packet.emplace_back(0);
       }
-    EvidenceProcessor::processEvidenceData(clipID, packetBuffer.extract(deviceID));
+    EvidenceProcessor::processEvidenceData(deviceID, clipID, packetBuffer.extract(deviceClipID));
   }
 
   // Clean up the reception timer and packet buffer entries
@@ -96,22 +96,24 @@ void PacketReceiver::processPacket(const EvidenceMessage* packet, uint32_t packe
   const uint8_t messageIndex = packet->messageIdxAndFinal & MQTT_MESSAGE_INDEX_MASK, isFinal = packet->messageIdxAndFinal & MQTT_MESSAGE_FINAL_MASK;
   logger.log(Logger::INFO, "Received evidence packet #%u for Clip #%u from Device #%lu\n", messageIndex, packet->clipID, packet->deviceID);
   std::vector<uint8_t> evidenceData(packet->data, packet->data + packetLength - offsetof(EvidenceMessage, data));
+  const uint64_t deviceClipID = (static_cast<uint64_t>(packet->deviceID) << 32) & packet->clipID;
 
-  // Start or reset a reception timeout timer for the device's evidence queue
+  // Start or reset a reception timeout timer for the device clip's evidence queue
   std::lock_guard<std::mutex> receptionLock(receptionTimerMutex);
-  if (!receptionTimers.count(packet->deviceID))
+  if (!receptionTimers.count(deviceClipID))
   {
-    receptionTimers.emplace(packet->deviceID, ReceptionTimerInfo{std::thread(&PacketReceiver::receptionTimeoutThread, packet->deviceID, packet->clipID), 0, isFinal != 0, false});
-    receptionTimers[packet->deviceID].timerThread.detach();
+    receptionTimers.emplace(deviceClipID,
+                            ReceptionTimerInfo{std::thread(&PacketReceiver::receptionTimeoutThread, deviceClipID, packet->deviceID, packet->clipID), 0, isFinal != 0, false});
+    receptionTimers[deviceClipID].timerThread.detach();
   }
   else
   {
-    receptionTimers[packet->deviceID].elapsedSeconds = 0;
-    receptionTimers[packet->deviceID].isFinalPacketReceived = receptionTimers[packet->deviceID].isFinalPacketReceived || isFinal;
+    receptionTimers[deviceClipID].elapsedSeconds = 0;
+    receptionTimers[deviceClipID].isFinalPacketReceived = receptionTimers[deviceClipID].isFinalPacketReceived || isFinal;
   }
 
-  // Place the packet into its correct slot in the device's evidence queue
-  auto& packets = packetBuffer[packet->deviceID];
+  // Place the packet into its correct slot in the device clip's evidence queue
+  auto& packets = packetBuffer[deviceClipID];
   if (packets.size() == messageIndex)
     packets.emplace_back(std::move(evidenceData));
   else if (packets.size() < messageIndex)
@@ -123,11 +125,11 @@ void PacketReceiver::processPacket(const EvidenceMessage* packet, uint32_t packe
     packets[messageIndex] = std::move(evidenceData);
 
   // Pass the queue to the evidence processor if the packet series is complete
-  if (receptionTimers[packet->deviceID].isFinalPacketReceived && std::none_of(packets.cbegin(), packets.cend(), [](const std::vector<uint8_t>& pkt) { return pkt.empty(); }))
+  if (receptionTimers[deviceClipID].isFinalPacketReceived && std::none_of(packets.cbegin(), packets.cend(), [](const std::vector<uint8_t>& pkt) { return pkt.empty(); }))
   {
     logger.log(Logger::INFO, "Received all evidence packets for Clip #%u from Device #%lu, processing...\n", packet->clipID, packet->deviceID);
-    EvidenceProcessor::processEvidenceData(packet->clipID, packetBuffer.extract(packet->deviceID));
-    receptionTimers[packet->deviceID].isProcessingStarted = true;
-    receptionTimers[packet->deviceID].elapsedSeconds = -1;
+    EvidenceProcessor::processEvidenceData(packet->deviceID, packet->clipID, packetBuffer.extract(deviceClipID));
+    receptionTimers[deviceClipID].isProcessingStarted = true;
+    receptionTimers[deviceClipID].elapsedSeconds = -1;
   }
 }

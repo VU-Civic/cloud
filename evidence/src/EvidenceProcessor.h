@@ -16,7 +16,7 @@ public:
   static void cleanup(void);
 
   // Evidence processing functions
-  static void processEvidenceData(uint8_t clipID, std::unordered_map<uint32_t, std::vector<std::vector<uint8_t>>>::node_type&& evidence);
+  static void processEvidenceData(uint32_t deviceID, uint8_t clipID, std::unordered_map<uint64_t, std::vector<std::vector<uint8_t>>>::node_type&& evidence);
 
 private:
 

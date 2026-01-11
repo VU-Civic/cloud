@@ -47,6 +47,5 @@ int main(void)
   return EXIT_SUCCESS;
 }
 
-// TODO: Make packet storage queues clipID-aware
 // TODO: Test CloudWatch (https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Agent-Configuration-File-Details.html)
 // TODO: Test log rotation
