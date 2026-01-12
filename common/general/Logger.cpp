@@ -1,6 +1,7 @@
+#include <cstdarg>
+#include <ctime>
 #include <filesystem>
-#include <stdarg.h>
-#include <time.h>
+#include <vector>
 #include "Common.h"
 #include "Logger.h"
 
