@@ -1,5 +1,7 @@
+#include <filesystem>
 #include <stdarg.h>
 #include <time.h>
+#include "Common.h"
 #include "Logger.h"
 
 // Static local log level strings
@@ -88,6 +90,12 @@ void Logger::rotate(const char* newPath)
   rename(logPath.c_str(), newPath);
   logFile = fopen(logPath.c_str(), "w");
   inUse.clear(std::memory_order_release);
+
+  // Ensure that any empty old log files are removed
+  std::vector<std::filesystem::path> emptyFiles;
+  for (const auto& entry : std::filesystem::directory_iterator(CivicAlert::LOG_FILE_ROTATION_DIRECTORY))
+    if (std::filesystem::is_empty(entry.path())) emptyFiles.push_back(entry.path());
+  for (const auto& file : emptyFiles) std::filesystem::remove(file);
 }
 
 void Logger::logRotationWorker(void)

@@ -1,12 +1,14 @@
 #ifndef __COMMON_HEADER_H__
 #define __COMMON_HEADER_H__
 
-#include "Logger.h"
+#include <cstdint>
+#include <string>
 
 // String concatenation helper definition
 #define CONCAT_STRINGS(str1, str2) str1 str2
 
 // Make global logger accessible everywhere
+class Logger;
 extern Logger logger;
 
 // MQTT evidence message constants
@@ -98,7 +100,6 @@ namespace CivicAlert
   constexpr const char* PROCESS_LOG_FILE = CONCAT_STRINGS(LOG_FILE_PATH, "cloud.log");
   constexpr const char* LOG_FILE_ROTATION_DIRECTORY = CONCAT_STRINGS(LOG_FILE_PATH, "to_upload/");
   constexpr const uint32_t LOG_FILE_ROTATION_INTERVAL_SECONDS = 1800;
-  constexpr const Logger::LogLevel LOG_MAX_LEVEL = Logger::INFO;
 
   // Weather API parameters
   extern std::string WEATHER_API_ID_OPENWEATHERMAP;

@@ -5,7 +5,7 @@
 #include "ProcessUtils.h"
 
 // Global application logger
-Logger logger(CivicAlert::PROCESS_LOG_FILE, CivicAlert::LOG_MAX_LEVEL);
+Logger logger(CivicAlert::PROCESS_LOG_FILE, Logger::LogLevel::INFO);
 
 // Cleanup routine to be called upon application termination
 static void globalCleanup(void)
