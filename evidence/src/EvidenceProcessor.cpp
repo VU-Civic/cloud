@@ -79,7 +79,7 @@ void EvidenceProcessor::cleanup(void)
   for (const auto& file : temporaryFiles) std::filesystem::remove(file);
 }
 
-void EvidenceProcessor::processEvidenceData(uint32_t deviceID, uint8_t clipID, std::unordered_map<uint64_t, std::vector<std::vector<uint8_t>>>::node_type&& evidence)
+void EvidenceProcessor::processEvidenceData(uint64_t deviceID, uint8_t clipID, std::unordered_map<uint64_t, std::vector<std::vector<uint8_t>>>::node_type&& evidence)
 {
   // Compute the total byte length of the evidence data
   size_t evidenceDataLength = 0;
@@ -97,7 +97,7 @@ void EvidenceProcessor::processEvidenceData(uint32_t deviceID, uint8_t clipID, s
   worker.detach();
 }
 
-void EvidenceProcessor::processEvidenceWorker(uint32_t deviceID, uint8_t clipID, std::vector<uint8_t>&& rawEvidence)
+void EvidenceProcessor::processEvidenceWorker(uint64_t deviceID, uint8_t clipID, std::vector<uint8_t>&& rawEvidence)
 {
   // Open a memory stream for reading the raw evidence data
   EvidenceOpusFrame evidenceFrame;
@@ -105,7 +105,7 @@ void EvidenceProcessor::processEvidenceWorker(uint32_t deviceID, uint8_t clipID,
   FILE* evidenceData = fmemopen(rawEvidence.data(), rawEvidence.size(), "rb");
   if (!evidenceData)
   {
-    logger.log(Logger::ERROR, "Failed to open evidence data stream for Device #%lu, Clip #%u\n", deviceID, clipID);
+    logger.log(Logger::ERROR, "Failed to open evidence data stream for Device #%llu, Clip #%u\n", deviceID, clipID);
     numActiveThreads.fetch_sub(1, std::memory_order_relaxed);
     return;
   }
@@ -154,7 +154,7 @@ void EvidenceProcessor::processEvidenceWorker(uint32_t deviceID, uint8_t clipID,
     // Read the next audio frame
     samplesRead = fread(&evidenceFrame.encodedData, 1, evidenceFrame.numEncodedBytes, evidenceData);
     if (samplesRead != evidenceFrame.numEncodedBytes) break;
-    logger.log(Logger::DEBUG, "Processing data frame of size %zu for Device #%lu\n", samplesRead, deviceID);
+    logger.log(Logger::DEBUG, "Processing data frame of size %zu for Device #%llu\n", samplesRead, deviceID);
 
     // Decode the audio frame and re-encode it as Ogg in the output file
     const unsigned char* dataPtr = evidenceFrame.numEncodedBytes ? evidenceFrame.encodedData : nullptr;

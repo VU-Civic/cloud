@@ -26,7 +26,7 @@ private:
 
   // Thread and processing functions
   static void packetReceptionThread(void);
-  static void receptionTimeoutThread(uint64_t deviceClipID, uint32_t deviceID, uint8_t clipID);
+  static void receptionTimeoutThread(uint64_t deviceClipID, uint64_t deviceID, uint8_t clipID);
   static void processPacket(const EvidenceMessage* packet, uint32_t packetLength);
 
   // Private member variables

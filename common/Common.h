@@ -3,6 +3,9 @@
 
 #include "Logger.h"
 
+// String concatenation helper definition
+#define CONCAT_STRINGS(str1, str2) str1 str2
+
 // Make global logger accessible everywhere
 extern Logger logger;
 
@@ -12,9 +15,8 @@ extern Logger logger;
 #define MQTT_MESSAGE_FINAL_MASK 0x80
 typedef struct __attribute__((__packed__))
 {
-  uint32_t deviceID;
-  uint8_t clipID, messageIdxAndFinal;
-  uint8_t data[MQTT_MAX_PAYLOAD_SIZE_BYTES];
+  uint8_t deviceID[7], clipID, messageIdxAndFinal;
+  uint8_t data[MQTT_MAX_PAYLOAD_SIZE_BYTES - 9];
 } EvidenceMessage;
 
 // Evidence clip Opus framing constants
@@ -25,7 +27,20 @@ typedef struct __attribute__((__packed__, aligned(4)))
   uint8_t encodedData[EVIDENCE_OPUS_FRAME_MAX_BYTES];
 } EvidenceOpusFrame;
 
-#define CONCAT_STRINGS(str1, str2) str1 str2
+// MQTT alert message constants
+typedef struct __attribute__((__packed__))
+{
+  uint64_t deviceID;
+  float lat, lon, height, confidence;
+  double timestamp;
+  bool usedInFusion;
+} AlertMessage;
+
+// Fused incident message
+typedef struct
+{
+  bool fusionSuccessful;
+} IncidentMessage;
 
 namespace CivicAlert
 {
@@ -69,6 +84,14 @@ namespace CivicAlert
   constexpr const unsigned int EVIDENCE_AUDIO_MS_PER_FRAME = 20;
   constexpr const unsigned int EVIDENCE_DECODED_FRAME_SAMPLES = (EVIDENCE_AUDIO_SAMPLE_RATE_HZ / 1000) * EVIDENCE_AUDIO_MS_PER_FRAME;
 
+  // Alert processing parameters
+  constexpr const int ALERT_PROCESSING_TIMEOUT_SECONDS = 4;
+
+  // Fusion algorithm parameters
+  constexpr const uint8_t FUSION_MIN_NUM_EVENTS = 3;  // TODO: LOWER THIS IF FEWER SENSORS IN AREA, MAYBE MAKE THIS ENTIRELY DEPENDENT ON SENSOR DENSITY
+  constexpr const double FUSION_MAX_POSSIBLE_TIME_DIFFERENCE_SECONDS = 2.5;
+  constexpr const float FUSION_MAX_POSSIBLE_DISTANCE_METERS = 850.0;
+
 // Process-specific constants
 #define LOG_FILE_PATH "/var/log/civicalert/"
   constexpr const char* PROCESS_LOG_PATH = LOG_FILE_PATH;
@@ -80,18 +103,6 @@ namespace CivicAlert
   // Weather API parameters
   extern std::string WEATHER_API_ID_OPENWEATHERMAP;
   extern std::string WEATHER_API_ID_TOMORROWIO;
-  /*
-
-  // Alert message constants
-  pub const CELL_IMEI_LENGTH: usize = 15;
-  pub const DATA_MAX_TIMESTAMP_IN_PAST_SECONDS: f64 = 60.0;
-
-  // Fusion algorithm parameters
-  pub const FUSION_DATA_COLLECTION_SECONDS: u64 = 3;
-  pub const FUSION_ALGORITHM_MAX_DISTANCE_METERS: f64 = 700.0;
-  pub const FUSION_ALGORITHM_MAX_TIME_DIFF: u64 = 60;
-  pub const FUSION_ALGORITHM_MIN_NUM_EVENTS: usize = 3;
-  */
 }  // namespace CivicAlert
 
 #endif  // #ifndef __COMMON_HEADER_H__
