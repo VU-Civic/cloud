@@ -1,6 +1,8 @@
 #ifndef __LOGGER_HEADER_H__
 #define __LOGGER_HEADER_H__
 
+#include <atomic>
+#include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
