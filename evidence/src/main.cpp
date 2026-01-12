@@ -46,6 +46,3 @@ int main(void)
   // Return success
   return EXIT_SUCCESS;
 }
-
-// TODO: Test CloudWatch (https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Agent-Configuration-File-Details.html)
-// TODO: Test log rotation
