@@ -31,7 +31,7 @@ void PacketReceiver::stopListening(void)
 
   // Wait until all reception timer threads have completed
   bool timersRemaining = true;
-  for (int retries = 0; timersRemaining && (retries < 15); retries++)
+  for (int retries = 0; timersRemaining && (retries < (CivicAlert::EVIDENCE_PROCESSING_TIMEOUT_SECONDS * 10)); retries++)
   {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     std::lock_guard<std::mutex> receptionLock(receptionTimerMutex);
