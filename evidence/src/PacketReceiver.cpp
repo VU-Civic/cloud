@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <openssl/bio.h>
+#include <openssl/evp.h>
 #include "AwsServices.h"
 #include "Common.h"
 #include "EvidenceProcessor.h"
@@ -9,6 +11,23 @@ std::thread PacketReceiver::receiveThread;
 std::mutex PacketReceiver::receptionTimerMutex;
 std::unordered_map<uint64_t, std::vector<std::vector<uint8_t>>> PacketReceiver::packetBuffer;
 std::unordered_map<uint64_t, ReceptionTimerInfo> PacketReceiver::receptionTimers;
+
+static std::vector<uint8_t> base64Decode(std::vector<uint8_t>&& encodedData)
+{
+  // Set up OpenSSL BIO objects for Base64 decoding
+  BIO* bioB64 = BIO_new(BIO_f_base64());
+  BIO* bioMem = BIO_push(bioB64, BIO_new_mem_buf(encodedData.data(), static_cast<int>(encodedData.size())));
+  BIO_set_flags(bioMem, BIO_FLAGS_BASE64_NO_NL);
+
+  // Decode the Base64 data into a byte vector
+  std::vector<uint8_t> decodedData(encodedData.size());
+  const int decodedLength = BIO_read(bioMem, decodedData.data(), static_cast<int>(decodedData.size()));
+  decodedData.resize(decodedLength > 0 ? static_cast<size_t>(decodedLength) : 0);
+
+  // Clean up OpenSSL BIO objects
+  BIO_free_all(bioMem);
+  return decodedData;
+}
 
 void PacketReceiver::listenForPackets(void)
 {
@@ -45,12 +64,12 @@ void PacketReceiver::packetReceptionThread(void)
   // Loop forever until the program is terminated
   while (isRunning.load(std::memory_order_relaxed))
   {
-    // Receive packets from the MQTT broker and validate their size
-    const auto receivedMessage = AwsServices::mqttReceive();
-    if ((receivedMessage.size() >= offsetof(EvidenceMessage, data)) && (receivedMessage.size() <= sizeof(EvidenceMessage)))
-      processPacket(reinterpret_cast<const EvidenceMessage*>(receivedMessage.data()), receivedMessage.size());
+    // Receive packets from the MQTT broker, decode them, and validate their size
+    const auto decodedData = base64Decode(AwsServices::mqttReceive());
+    if ((decodedData.size() >= offsetof(EvidenceMessage, data)) && (decodedData.size() <= sizeof(EvidenceMessage)))
+      processPacket(reinterpret_cast<const EvidenceMessage*>(decodedData.data()), static_cast<uint32_t>(decodedData.size()));
     else if (isRunning.load(std::memory_order_relaxed))
-      logger.log(Logger::WARNING, "Received MQTT packet of incorrect size (%zu bytes)\n", receivedMessage.size());
+      logger.log(Logger::WARNING, "Received MQTT packet of incorrect size (%zu bytes)\n", decodedData.size());
   }
 }
 
