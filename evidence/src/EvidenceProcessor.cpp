@@ -172,7 +172,7 @@ void EvidenceProcessor::processEvidenceWorker(uint64_t deviceID, uint8_t clipID,
   fclose(evidenceData);
 
   // Store the evidence clip into S3 and update the database record
-  logger.log(Logger::INFO, "Storing evidence clip to AWS S3: %s\n", fileName.c_str());
+  logger.log(Logger::INFO, "Storing evidence clip to AWS S3 as %s\n", fileName.c_str());
   if (AwsServices::storeEvidenceClipToS3(fileName.c_str(), localFileName.c_str()))
   {
     const std::string evidenceUpdateQuery = std::string("WITH updated AS(UPDATE ") + std::string(CivicAlert::DB_EVIDENCE_CLIP_TABLE_NAME) + std::string(" SET file_name='") +
