@@ -10,12 +10,14 @@ public:
 
   // Constructor/destructor
   AwsSecrets(void);
+  AwsSecrets(const AwsSecrets&) = delete;
+  AwsSecrets& operator=(const AwsSecrets&) = delete;
   ~AwsSecrets(void);
 
   // AWS Secrets Manager functionality
-  std::string getParameter(const char* parameterID);
-  rapidjson::Document getSecret(const char* secretID);
-  std::string extractSecretValue(const rapidjson::Document& secretJson, const char* valueKey);
+  std::string getParameter(const char* __restrict parameterID);
+  rapidjson::Document getSecret(const char* __restrict secretID);
+  std::string extractSecretValue(const rapidjson::Document& secretJson, const char* __restrict valueKey) const;
 
 private:
 

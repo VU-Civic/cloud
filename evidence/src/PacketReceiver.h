@@ -27,10 +27,10 @@ private:
   // Thread and processing functions
   static void packetReceptionThread(void);
   static void receptionTimeoutThread(uint64_t deviceClipID, uint64_t deviceID, uint8_t clipID);
-  static void processPacket(const EvidenceMessage* packet, uint32_t packetLength);
+  static void processPacket(const EvidenceMessage* __restrict packet, uint32_t packetLength);
 
   // Private member variables
-  static std::atomic<bool> isRunning;
+  static std::atomic_bool isRunning;
   static std::thread receiveThread;
   static std::mutex receptionTimerMutex;
   static std::unordered_map<uint64_t, std::vector<std::vector<uint8_t>>> packetBuffer;

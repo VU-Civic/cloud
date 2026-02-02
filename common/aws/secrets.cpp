@@ -5,7 +5,7 @@
 AwsSecrets::AwsSecrets(void) : ssmClient(AWS::getSSMClient()), secretsClient(AWS::getSecretsManagerClient()) {}
 AwsSecrets::~AwsSecrets(void) {}
 
-std::string AwsSecrets::getParameter(const char* parameterID)
+std::string AwsSecrets::getParameter(const char* __restrict parameterID)
 {
   // Ensure that the SSM client was properly initialized
   std::string parameterValue;
@@ -22,7 +22,7 @@ std::string AwsSecrets::getParameter(const char* parameterID)
   return parameterValue;
 }
 
-rapidjson::Document AwsSecrets::getSecret(const char* secretID)
+rapidjson::Document AwsSecrets::getSecret(const char* __restrict secretID)
 {
   // Ensure that the Secrets Manager client was properly initialized
   rapidjson::Document secretJson;
@@ -48,7 +48,7 @@ rapidjson::Document AwsSecrets::getSecret(const char* secretID)
   return secretJson;
 }
 
-std::string AwsSecrets::extractSecretValue(const rapidjson::Document& secretJson, const char* valueKey)
+std::string AwsSecrets::extractSecretValue(const rapidjson::Document& secretJson, const char* __restrict valueKey) const
 {
   // Extract the specified value from the secret JSON
   std::string secretValue;

@@ -12,16 +12,16 @@ class AwsMQTT final
 public:
 
   // Constructor/destructor
-  AwsMQTT(const char* clientId, std::string&& caKey, std::string&& clientCertKey, std::string&& clientKeyKey, const char* endpointUrl, uint32_t endpointPort,
+  AwsMQTT(const char* __restrict clientId, std::string&& caKey, std::string&& clientCertKey, std::string&& clientKeyKey, const char* __restrict endpointUrl, uint32_t endpointPort,
           uint32_t keepAliveSeconds);
   ~AwsMQTT(void);
 
   // AWS MQTT5 management functionality
   bool connect(void);
   void disconnect(void);
-  bool subscribe(const char* topic, uint8_t qos);
-  void unsubscribe(const char* topic);
-  bool publish(const char* topic, const uint8_t* payload, size_t payloadLength, uint8_t qos, bool retain);
+  bool subscribe(const char* __restrict topic, uint8_t qos);
+  void unsubscribe(const char* __restrict topic);
+  bool publish(const char* __restrict topic, const uint8_t* __restrict payload, size_t payloadLength, uint8_t qos, bool retain);
   std::vector<uint8_t> receive(void);
 
 private:

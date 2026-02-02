@@ -9,13 +9,15 @@ class PostgreSQL final
 public:
 
   // Constructor/destructor
-  PostgreSQL(const char* hostIp, const char* hostPort, const char* hostDbName, const char* username, const char* password);
+  PostgreSQL(const char* __restrict hostIp, const char* __restrict hostPort, const char* __restrict hostDbName, const char* __restrict username, const char* __restrict password);
+  PostgreSQL(const PostgreSQL&) = delete;
+  PostgreSQL& operator=(const PostgreSQL&) = delete;
   ~PostgreSQL();
 
   // Connection management
   bool connect();
   void disconnect();
-  bool isConnected();
+  bool isConnected() const;
 
   // Typical database operations
   bool executeQuery(const char* __restrict query);
@@ -24,7 +26,7 @@ public:
 private:
 
   // Member variables
-  std::string dbIp, dbPort, dbName, dbUser, dbPassword;
+  const std::string dbIp, dbPort, dbName, dbUser, dbPassword;
   PGconn* connection;
 };
 

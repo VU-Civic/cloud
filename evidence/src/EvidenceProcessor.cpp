@@ -8,19 +8,19 @@
 
 int EvidenceProcessor::referenceCount = 0;
 std::mutex EvidenceProcessor::initializationMutex;
-std::atomic<uint32_t> EvidenceProcessor::numActiveThreads{0};
+std::atomic_uint32_t EvidenceProcessor::numActiveThreads{0};
 std::unique_ptr<PostgreSQL> EvidenceProcessor::evidenceDatabase;
 std::string EvidenceProcessor::alertTableName;
 
 void EvidenceProcessor::connectToEvidenceDatabase(void)
 {
   // Retrieve the database endpoint, username, and password from AWS secrets
-  std::string dbEndpoint(AwsServices::getSecretParameter(CivicAlert::AWS_PARAMETER_KEY_DB_ENDPOINT));
-  std::string dbSecretsKey(AwsServices::getSecretParameter(CivicAlert::AWS_PARAMETER_KEY_DB_SECRETS_KEY));
-  std::string dbPort(AwsServices::getSecretParameter(CivicAlert::AWS_PARAMETER_KEY_DB_PORT));
-  const auto dbSecrets(AwsServices::getSecret(dbSecretsKey.c_str()));
-  std::string dbUsername(AwsServices::extractSecretValue(dbSecrets, "username"));
-  std::string dbPassword(AwsServices::extractSecretValue(dbSecrets, "password"));
+  const auto dbEndpoint = AwsServices::getSecretParameter(CivicAlert::AWS_PARAMETER_KEY_DB_ENDPOINT);
+  const auto dbSecretsKey = AwsServices::getSecretParameter(CivicAlert::AWS_PARAMETER_KEY_DB_SECRETS_KEY);
+  const auto dbPort = AwsServices::getSecretParameter(CivicAlert::AWS_PARAMETER_KEY_DB_PORT);
+  const auto dbSecrets = AwsServices::getSecret(dbSecretsKey.c_str());
+  const auto dbUsername = AwsServices::extractSecretValue(dbSecrets, "username");
+  const auto dbPassword = AwsServices::extractSecretValue(dbSecrets, "password");
   if (dbEndpoint.empty() || dbPort.empty() || dbSecretsKey.empty() || dbUsername.empty() || dbPassword.empty())
   {
     logger.log(Logger::ERROR, "Database endpoint, port, or secrets parameter is empty...restarting process!\n");
@@ -62,7 +62,7 @@ void EvidenceProcessor::cleanup(void)
 
   // Wait until all active threads have finished processing
   logger.log(Logger::INFO, "Waiting for all active evidence processing threads to finish...\n");
-  while (numActiveThreads.load(std::memory_order_relaxed) > 0) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  while (numActiveThreads.load() > 0) std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   // Clean up the database connection
   if (evidenceDatabase)
@@ -92,7 +92,7 @@ void EvidenceProcessor::processEvidenceData(uint64_t deviceID, uint8_t clipID, s
   for (const auto& chunk : evidenceData) flattenedEvidence.insert(flattenedEvidence.end(), chunk.begin(), chunk.end());
 
   // Start a new detached thread to process the evidence data
-  numActiveThreads.fetch_add(1, std::memory_order_relaxed);
+  numActiveThreads.fetch_add(1);
   std::thread worker(&EvidenceProcessor::processEvidenceWorker, deviceID, clipID, std::move(flattenedEvidence));
   worker.detach();
 }
@@ -106,7 +106,7 @@ void EvidenceProcessor::processEvidenceWorker(uint64_t deviceID, uint8_t clipID,
   if (!evidenceData)
   {
     logger.log(Logger::ERROR, "Failed to open evidence data stream for Device #%llu, Clip #%u\n", deviceID, clipID);
-    numActiveThreads.fetch_sub(1, std::memory_order_relaxed);
+    numActiveThreads.fetch_sub(1);
     return;
   }
 
@@ -116,16 +116,16 @@ void EvidenceProcessor::processEvidenceWorker(uint64_t deviceID, uint8_t clipID,
   if (error != OPUS_OK)
   {
     logger.log(Logger::ERROR, "Failed to create an Opus stream decoder: %s\n", opus_strerror(error));
-    numActiveThreads.fetch_sub(1, std::memory_order_relaxed);
+    numActiveThreads.fetch_sub(1);
     fclose(evidenceData);
     return;
   }
 
   // Create an Ogg Opus encoder for writing the full evidence clip
-  const std::string fileName = std::to_string(deviceID) + std::string("_") + std::to_string(time(nullptr)) + CivicAlert::EVIDENCE_CLIP_FILE_EXTENSION;
-  const std::string localFileName = std::string("/tmp/") + fileName;
-  OggOpusComments* comments = ope_comments_create();
-  OggOpusEnc* oggEncoder = ope_encoder_create_file(localFileName.c_str(), comments, CivicAlert::EVIDENCE_AUDIO_SAMPLE_RATE_HZ, CivicAlert::EVIDENCE_AUDIO_NUM_CHANNELS, 0, &error);
+  const auto fileName = std::to_string(deviceID) + "_" + std::to_string(time(nullptr)) + CivicAlert::EVIDENCE_CLIP_FILE_EXTENSION;
+  const auto localFileName = "/tmp/" + fileName;
+  auto* comments = ope_comments_create();
+  auto* oggEncoder = ope_encoder_create_file(localFileName.c_str(), comments, CivicAlert::EVIDENCE_AUDIO_SAMPLE_RATE_HZ, CivicAlert::EVIDENCE_AUDIO_NUM_CHANNELS, 0, &error);
   if (comments && oggEncoder)
   {
     ope_comments_add(comments, "ARTIST", "CivicAlert");
@@ -134,7 +134,7 @@ void EvidenceProcessor::processEvidenceWorker(uint64_t deviceID, uint8_t clipID,
   else
   {
     logger.log(Logger::ERROR, "Failed to create an Ogg Opus encoder: %s\n", opus_strerror(error));
-    numActiveThreads.fetch_sub(1, std::memory_order_relaxed);
+    numActiveThreads.fetch_sub(1);
     if (oggEncoder) ope_encoder_destroy(oggEncoder);
     if (comments) ope_comments_destroy(comments);
     fclose(evidenceData);
@@ -148,7 +148,7 @@ void EvidenceProcessor::processEvidenceWorker(uint64_t deviceID, uint8_t clipID,
 
   // Process the audio data in frames
   constexpr const size_t frameHeaderSize = offsetof(EvidenceOpusFrame, encodedData);
-  size_t samplesRead = fread(&evidenceFrame, 1, frameHeaderSize, evidenceData);
+  auto samplesRead = fread(&evidenceFrame, 1, frameHeaderSize, evidenceData);
   while ((samplesRead == frameHeaderSize) && (evidenceFrame.frameDelimiter == CivicAlert::EVIDENCE_OPUS_FRAME_DELIMITER))
   {
     // Read the next audio frame
@@ -158,7 +158,7 @@ void EvidenceProcessor::processEvidenceWorker(uint64_t deviceID, uint8_t clipID,
 
     // Decode the audio frame and re-encode it as Ogg in the output file
     const unsigned char* dataPtr = evidenceFrame.numEncodedBytes ? evidenceFrame.encodedData : nullptr;
-    int numDecodedSamples = opus_decode(opusDecoder, dataPtr, evidenceFrame.numEncodedBytes, decodedPacket, CivicAlert::EVIDENCE_DECODED_FRAME_SAMPLES, 0);
+    auto numDecodedSamples = opus_decode(opusDecoder, dataPtr, evidenceFrame.numEncodedBytes, decodedPacket, CivicAlert::EVIDENCE_DECODED_FRAME_SAMPLES, 0);
     ope_encoder_write(oggEncoder, decodedPacket, numDecodedSamples);
 
     // Read the next frame header
@@ -193,5 +193,5 @@ void EvidenceProcessor::processEvidenceWorker(uint64_t deviceID, uint8_t clipID,
 
   // Delete the temporary local evidence clip file and decrement the active thread count
   std::remove(localFileName.c_str());
-  numActiveThreads.fetch_sub(1, std::memory_order_relaxed);
+  numActiveThreads.fetch_sub(1);
 }

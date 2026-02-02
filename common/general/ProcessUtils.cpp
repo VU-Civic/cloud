@@ -8,18 +8,14 @@
 sigset_t ProcessUtils::signalMask;
 pthread_t ProcessUtils::signalHandlerThread;
 
-void* ProcessUtils::generalSignalHandler(void* args)
+void* ProcessUtils::generalSignalHandler(void*)
 {
-  // Get the passed-in signal mask
-  int signalCaught = 0;
-  sigset_t* mask = static_cast<sigset_t*>(args);
-
   // Loop forever catching signals
   while (true)
   {
     // Wait until one of the masked signals is caught
-    signalCaught = 0;
-    if (sigwait(mask, &signalCaught) != 0) continue;
+    int signalCaught = 0;
+    if (sigwait(&signalMask, &signalCaught) != 0) continue;
 
     // Handle the received signal
     switch (signalCaught)
@@ -57,7 +53,7 @@ void ProcessUtils::setupSignalHandlers(void)
   pthread_attr_t signalHandlerAttributes;
   pthread_attr_init(&signalHandlerAttributes);
   pthread_attr_setdetachstate(&signalHandlerAttributes, PTHREAD_CREATE_JOINABLE);
-  if (pthread_create(&signalHandlerThread, &signalHandlerAttributes, &generalSignalHandler, static_cast<void*>(&signalMask))) exit(EXIT_FAILURE);
+  if (pthread_create(&signalHandlerThread, &signalHandlerAttributes, &generalSignalHandler, nullptr)) exit(EXIT_FAILURE);
   pthread_attr_destroy(&signalHandlerAttributes);
 }
 

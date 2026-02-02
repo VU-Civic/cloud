@@ -1,50 +1,32 @@
 #include <algorithm>
-#include <openssl/bio.h>
-#include <openssl/evp.h>
 #include "AwsServices.h"
 #include "Common.h"
 #include "EvidenceProcessor.h"
 #include "PacketReceiver.h"
+#include "Transcoding.h"
 
-std::atomic<bool> PacketReceiver::isRunning(false);
+std::atomic_bool PacketReceiver::isRunning(false);
 std::thread PacketReceiver::receiveThread;
 std::mutex PacketReceiver::receptionTimerMutex;
 std::unordered_map<uint64_t, std::vector<std::vector<uint8_t>>> PacketReceiver::packetBuffer;
 std::unordered_map<uint64_t, ReceptionTimerInfo> PacketReceiver::receptionTimers;
 
-static std::vector<uint8_t> base64Decode(std::vector<uint8_t>&& encodedData)
-{
-  // Set up OpenSSL BIO objects for Base64 decoding
-  BIO* bioB64 = BIO_new(BIO_f_base64());
-  BIO* bioMem = BIO_push(bioB64, BIO_new_mem_buf(encodedData.data(), static_cast<int>(encodedData.size())));
-  BIO_set_flags(bioMem, BIO_FLAGS_BASE64_NO_NL);
-
-  // Decode the Base64 data into a byte vector
-  std::vector<uint8_t> decodedData(encodedData.size());
-  const int decodedLength = BIO_read(bioMem, decodedData.data(), static_cast<int>(decodedData.size()));
-  decodedData.resize(decodedLength > 0 ? static_cast<size_t>(decodedLength) : 0);
-
-  // Clean up OpenSSL BIO objects
-  BIO_free_all(bioMem);
-  return decodedData;
-}
-
 void PacketReceiver::listenForPackets(void)
 {
   // Start a new thread to listen for incoming packets
   logger.log(Logger::INFO, "Listening for incoming evidence packets...\n");
-  isRunning.store(true, std::memory_order_relaxed);
+  isRunning.store(true, std::memory_order_release);
   receiveThread = std::thread(&PacketReceiver::packetReceptionThread);
 }
 
 void PacketReceiver::stopListening(void)
 {
   // Only stop if the receiver is currently running
-  if (!isRunning.load(std::memory_order_relaxed)) return;
+  if (!isRunning.load(std::memory_order_acquire)) return;
 
   // Stop the packet reception thread and disconnect from the MQTT broker
   logger.log(Logger::INFO, "Stopping the evidence listening thread...\n");
-  isRunning.store(false, std::memory_order_relaxed);
+  isRunning.store(false, std::memory_order_release);
   AwsServices::mqttDisconnect();
   if (receiveThread.joinable()) receiveThread.join();
 
@@ -62,13 +44,13 @@ void PacketReceiver::stopListening(void)
 void PacketReceiver::packetReceptionThread(void)
 {
   // Loop forever until the program is terminated
-  while (isRunning.load(std::memory_order_relaxed))
+  while (isRunning.load(std::memory_order_acquire))
   {
     // Receive packets from the MQTT broker, decode them, and validate their size
-    const auto decodedData = base64Decode(AwsServices::mqttReceive());
+    const auto decodedData = Transcoding::base64Decode(AwsServices::mqttReceive());
     if ((decodedData.size() >= offsetof(EvidenceMessage, data)) && (decodedData.size() <= sizeof(EvidenceMessage)))
       processPacket(reinterpret_cast<const EvidenceMessage*>(decodedData.data()), static_cast<uint32_t>(decodedData.size()));
-    else if (isRunning.load(std::memory_order_relaxed))
+    else if (isRunning.load(std::memory_order_acquire))
       logger.log(Logger::WARNING, "Received MQTT packet of incorrect size (%zu bytes)\n", decodedData.size());
   }
 }
@@ -77,7 +59,7 @@ void PacketReceiver::receptionTimeoutThread(uint64_t deviceClipID, uint64_t devi
 {
   // Loop forever until reception times out or the program is terminated
   bool timedOut = false;
-  while (isRunning.load(std::memory_order_relaxed) && !timedOut)
+  while (isRunning.load(std::memory_order_acquire) && !timedOut)
   {
     // Sleep for one second and increment the timer count
     std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -109,7 +91,7 @@ void PacketReceiver::receptionTimeoutThread(uint64_t deviceClipID, uint64_t devi
   packetBuffer.erase(deviceClipID);
 }
 
-void PacketReceiver::processPacket(const EvidenceMessage* packet, uint32_t packetLength)
+void PacketReceiver::processPacket(const EvidenceMessage* __restrict packet, uint32_t packetLength)
 {
   // Extract the message index, final flag, and evidence data from the packet
   const uint64_t deviceClipID = *reinterpret_cast<const uint64_t*>(packet->deviceID), deviceID = deviceClipID & 0x00FFFFFFFFFFFFFF;

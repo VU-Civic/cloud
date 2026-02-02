@@ -1,8 +1,8 @@
 #include <aws/crt/mqtt/Mqtt5Packets.h>
 #include "mqtt.h"
 
-AwsMQTT::AwsMQTT(const char* clientId, std::string&& caKey, std::string&& clientCertKey, std::string&& clientKeyKey, const char* endpointUrl, uint32_t endpointPort,
-                 uint32_t keepAliveSeconds)
+AwsMQTT::AwsMQTT(const char* __restrict clientId, std::string&& caKey, std::string&& clientCertKey, std::string&& clientKeyKey, const char* __restrict endpointUrl,
+                 uint32_t endpointPort, uint32_t keepAliveSeconds)
     : receivedPackets(), mqttClient(nullptr), clientConnected(), clientStopped(), packetReceived(), receiveMutex(), isRunning(false)
 {
   // Unescape newline characters in PEM strings
@@ -73,7 +73,7 @@ void AwsMQTT::disconnect(void)
   packetReceived.notify_one();
 }
 
-bool AwsMQTT::subscribe(const char* topic, uint8_t qos)
+bool AwsMQTT::subscribe(const char* __restrict topic, uint8_t qos)
 {
   // Ensure that there is a valid MQTT client
   if (!mqttClient.get()) return false;
@@ -105,7 +105,7 @@ bool AwsMQTT::subscribe(const char* topic, uint8_t qos)
   return false;
 }
 
-void AwsMQTT::unsubscribe(const char* topic)
+void AwsMQTT::unsubscribe(const char* __restrict topic)
 {
   // Ensure that there is a valid MQTT client
   if (!mqttClient.get()) return;
@@ -134,7 +134,7 @@ void AwsMQTT::unsubscribe(const char* topic)
     unsubscribeSuccess.get_future().wait();
 }
 
-bool AwsMQTT::publish(const char* topic, const uint8_t* payload, size_t payloadLength, uint8_t qos, bool retain)
+bool AwsMQTT::publish(const char* __restrict topic, const uint8_t* __restrict payload, size_t payloadLength, uint8_t qos, bool retain)
 {
   // Ensure that there is a valid MQTT client
   if (!mqttClient.get()) return false;

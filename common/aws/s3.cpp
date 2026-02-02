@@ -8,7 +8,7 @@
 #include <aws/s3/model/PutObjectRequest.h>
 #include "s3.h"
 
-AwsS3::AwsS3(const char* s3BucketName) : s3Client(AWS::getS3Client()), bucketName(s3BucketName) {}
+AwsS3::AwsS3(const char* __restrict s3BucketName) : s3Client(AWS::getS3Client()), bucketName(s3BucketName) {}
 AwsS3::~AwsS3(void) {}
 
 bool AwsS3::isConnected(void)
@@ -34,7 +34,7 @@ bool AwsS3::deleteBucket(void)
   return s3Client->DeleteBucket(deleteBucketRequest).IsSuccess();
 }
 
-bool AwsS3::storeFile(const char* s3FileName, const char* inputFilePath)
+bool AwsS3::storeFile(const char* __restrict s3FileName, const char* __restrict inputFilePath)
 {
   // Store the specified S3 file
   Aws::S3::Model::PutObjectRequest putObjectRequest;
@@ -48,7 +48,7 @@ bool AwsS3::storeFile(const char* s3FileName, const char* inputFilePath)
   return putObjectOutcome.IsSuccess();
 }
 
-bool AwsS3::storeFile(const char* s3FileName, const uint8_t* inputData, size_t inputDataLength)
+bool AwsS3::storeFile(const char* __restrict s3FileName, const uint8_t* __restrict inputData, size_t inputDataLength)
 {
   // Store the specified S3 file
   Aws::S3::Model::PutObjectRequest putObjectRequest;
@@ -65,7 +65,7 @@ bool AwsS3::storeFile(const char* s3FileName, const uint8_t* inputData, size_t i
   return putObjectOutcome.IsSuccess();
 }
 
-bool AwsS3::deleteFile(const char* s3FileName)
+bool AwsS3::deleteFile(const char* __restrict s3FileName)
 {
   // Delete the specified S3 file
   Aws::S3::Model::DeleteObjectRequest deleteObjectRequest;
@@ -92,7 +92,7 @@ bool AwsS3::deleteFiles(const std::vector<std::string>& s3FileNames)
   return deleteObjectsOutcome.IsSuccess();
 }
 
-bool AwsS3::downloadFile(const char* s3FileName, const char* outputFilePath)
+bool AwsS3::downloadFile(const char* __restrict s3FileName, const char* __restrict outputFilePath)
 {
   // Download the specified S3 file
   Aws::S3::Model::GetObjectRequest getObjectRequest;
@@ -107,7 +107,7 @@ bool AwsS3::downloadFile(const char* s3FileName, const char* outputFilePath)
   return getObjectOutcome.IsSuccess();
 }
 
-bool AwsS3::downloadFile(const char* s3FileName, uint8_t* outputData, size_t outputDataLength)
+bool AwsS3::downloadFile(const char* __restrict s3FileName, uint8_t* __restrict outputData, size_t outputDataLength)
 {
   // Download the specified S3 file
   Aws::S3::Model::GetObjectRequest getObjectRequest;
@@ -127,7 +127,7 @@ bool AwsS3::downloadFile(const char* s3FileName, uint8_t* outputData, size_t out
   return getObjectOutcome.IsSuccess();
 }
 
-size_t AwsS3::getFileSize(const char* s3FileName)
+size_t AwsS3::getFileSize(const char* __restrict s3FileName)
 {
   // Retrieve the size of the specified S3 file
   std::vector<std::string> bucketFiles;

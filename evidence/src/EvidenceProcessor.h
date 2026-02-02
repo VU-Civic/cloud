@@ -29,7 +29,7 @@ private:
   // Private member variables
   static int referenceCount;
   static std::mutex initializationMutex;
-  static std::atomic<uint32_t> numActiveThreads;
+  static std::atomic_uint32_t numActiveThreads;
   static std::unique_ptr<PostgreSQL> evidenceDatabase;
   static std::string alertTableName;
 };

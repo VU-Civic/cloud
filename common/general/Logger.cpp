@@ -6,9 +6,9 @@
 #include "Logger.h"
 
 // Static local log level strings
-static const char* const logLevelStrings[] = {"ERROR", "WARNING", "INFO", "DEBUG"};
+static constexpr const char* const logLevelStrings[] = {"ERROR", "WARNING", "INFO", "DEBUG"};
 
-Logger::Logger(const char* logFilePath, LogLevel maxLogLevel)
+Logger::Logger(const char* __restrict logFilePath, LogLevel maxLogLevel)
     : inUse(false),
       logPath(logFilePath),
       maxLogLevel(maxLogLevel),
@@ -30,19 +30,18 @@ Logger::~Logger(void)
   disableRotation();
 
   // Close the log file
-  while (inUse.test_and_set(std::memory_order_acquire));
+  while (inUse.test_and_set());
   fclose(logFile);
-  inUse.clear(std::memory_order_release);
 }
 
 void Logger::log(LogLevel logLevel, const char* __restrict fmt, ...)
 {
   // Only log if this message has a high enough level
-  while (inUse.test_and_set(std::memory_order_acquire));
   if (logLevel <= maxLogLevel)
   {
     // Print the log level and current timestamp
-    time_t currTime = time(nullptr);
+    const auto currTime = time(nullptr);
+    while (inUse.test_and_set());
     strftime(timeString, sizeof(timeString), "%Y-%m-%d %H:%M:%S", gmtime(&currTime));
     fprintf(logFile, "[%s] %s: ", timeString, logLevelStrings[logLevel]);
 
@@ -54,18 +53,18 @@ void Logger::log(LogLevel logLevel, const char* __restrict fmt, ...)
 
     // Flush the file to ensure that the log message is written immediately
     fflush(logFile);
+    inUse.clear();
   }
-  inUse.clear(std::memory_order_release);
 }
 
-void Logger::enableRotation(const char* rotationDestination, uint32_t rotationIntervalSeconds)
+void Logger::enableRotation(const char* __restrict rotationDestination, uint32_t rotationIntervalSeconds)
 {
   // Start a thread to handle log file rotation
-  if (!rotationRunning.load(std::memory_order_relaxed))
+  if (!rotationRunning.load(std::memory_order_acquire))
   {
+    rotationPath = rotationDestination;
     rotationInterval = std::max(rotationIntervalSeconds, 300U);
-    rotationRunning.store(true, std::memory_order_relaxed);
-    rotationPath = std::string(rotationDestination);
+    rotationRunning.store(true, std::memory_order_release);
     rotationThread = std::thread(&Logger::logRotationWorker, this);
   }
 }
@@ -73,24 +72,24 @@ void Logger::enableRotation(const char* rotationDestination, uint32_t rotationIn
 void Logger::disableRotation(void)
 {
   // Ensure that log rotation has stopped
-  while (inUse.test_and_set(std::memory_order_acquire));
-  rotationRunning.store(false, std::memory_order_relaxed);
+  while (inUse.test_and_set());
+  rotationRunning.store(false, std::memory_order_release);
   if (rotationThread.joinable())
   {
     terminateRotation.notify_one();
     rotationThread.join();
   }
-  inUse.clear(std::memory_order_release);
+  inUse.clear();
 }
 
-void Logger::rotate(const char* newPath)
+void Logger::rotate(const char* __restrict newPath)
 {
   // Rotate the log file to a new file path
-  while (inUse.test_and_set(std::memory_order_acquire));
+  while (inUse.test_and_set());
   fclose(logFile);
-  rename(logPath.c_str(), newPath);
+  std::filesystem::rename(logPath, newPath);
   logFile = fopen(logPath.c_str(), "w");
-  inUse.clear(std::memory_order_release);
+  inUse.clear();
 
   // Ensure that any empty old log files are removed
   std::vector<std::filesystem::path> emptyFiles;
@@ -102,17 +101,17 @@ void Logger::rotate(const char* newPath)
 void Logger::logRotationWorker(void)
 {
   // Loop forever until termination requested
-  while (rotationRunning.load(std::memory_order_relaxed))
+  while (rotationRunning.load(std::memory_order_acquire))
   {
     // Sleep for the log rotation interval
     std::mutex sleepMutex;
     std::unique_lock<std::mutex> lock(sleepMutex);
-    terminateRotation.wait_for(lock, std::chrono::seconds(rotationInterval), [this]() { return !rotationRunning.load(std::memory_order_relaxed); });
+    terminateRotation.wait_for(lock, std::chrono::seconds(rotationInterval), [this]() { return !rotationRunning.load(std::memory_order_acquire); });
 
     // Rotate the current log file to a new location based on the current timestamp
-    if (rotationRunning.load(std::memory_order_relaxed))
+    if (rotationRunning.load(std::memory_order_acquire))
     {
-      std::string newLogFilePath = rotationPath + std::to_string(time(nullptr)) + std::string(".log");
+      const auto newLogFilePath = rotationPath + std::to_string(time(nullptr)) + std::string(".log");
       rotate(newLogFilePath.c_str());
     }
   }

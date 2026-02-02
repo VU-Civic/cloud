@@ -4,10 +4,10 @@
 #include <aws/sqs/model/ReceiveMessageRequest.h>
 #include "sqs.h"
 
-AwsSQS::AwsSQS(const char* queueURL) : sqsClient(AWS::getSQSClient()), queueURL(queueURL) {}
+AwsSQS::AwsSQS(const char* __restrict queueURL) : sqsClient(AWS::getSQSClient()), queueURL(queueURL) {}
 AwsSQS::~AwsSQS(void) {}
 
-bool AwsSQS::sendMessage(const char* message)
+bool AwsSQS::sendMessage(const char* __restrict message)
 {
   // Send the specified message to the SQS queue
   Aws::SQS::Model::SendMessageRequest sendMessageRequest;
@@ -44,7 +44,7 @@ std::tuple<bool, std::string, std::string> AwsSQS::receiveMessage(int secondsToW
   return std::make_tuple(false, "", "");
 }
 
-bool AwsSQS::deleteMessage(const char* receiptHandle)
+bool AwsSQS::deleteMessage(const char* __restrict receiptHandle)
 {
   // Delete the specified message from the SQS queue
   Aws::SQS::Model::DeleteMessageRequest deleteMessageRequest;

@@ -3,7 +3,8 @@
 
 extern Logger logger;
 
-PostgreSQL::PostgreSQL(const char* hostIp, const char* hostPort, const char* hostDbName, const char* username, const char* password)
+PostgreSQL::PostgreSQL(const char* __restrict hostIp, const char* __restrict hostPort, const char* __restrict hostDbName, const char* __restrict username,
+                       const char* __restrict password)
     : dbIp(hostIp), dbPort(hostPort), dbName(hostDbName), dbUser(username), dbPassword(password), connection(nullptr)
 {
 }
@@ -40,7 +41,7 @@ void PostgreSQL::disconnect()
   }
 }
 
-bool PostgreSQL::isConnected() { return connection && (PQstatus(connection) == CONNECTION_OK); }
+bool PostgreSQL::isConnected() const { return connection && (PQstatus(connection) == CONNECTION_OK); }
 
 bool PostgreSQL::executeQuery(const char* __restrict query)
 {
