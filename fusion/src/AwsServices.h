@@ -15,14 +15,14 @@ public:
   static void cleanup(void);
 
   // Accessors for AWS service clients
-  static rapidjson::Document getSecret(const char* secretName) { return secretManager->getSecret(secretName); }
-  static std::string getSecretParameter(const char* parameterName) { return secretManager->getParameter(parameterName); }
-  static std::string extractSecretValue(const rapidjson::Document& secretJson, const char* valueKey) { return secretManager->extractSecretValue(secretJson, valueKey); }
+  static JsonObject getSecret(const char* __restrict secretName) { return secretManager->getSecret(secretName); }
+  static std::string getSecretParameter(const char* __restrict parameterName) { return secretManager->getParameter(parameterName); }
+  static std::string extractSecretValue(const JsonObject& secretJson, const char* __restrict valueKey) { return secretManager->extractSecretValue(secretJson, valueKey); }
   static inline bool mqttConnect(void) { return mqttClient->connect(); }
   static inline void mqttDisconnect(void) { mqttClient->disconnect(); }
-  static inline bool mqttSubscribe(const char* topic, uint8_t qos) { return mqttClient->subscribe(topic, qos); }
-  static inline void mqttUnsubscribe(const char* topic) { mqttClient->unsubscribe(topic); }
-  static inline std::vector<uint8_t> mqttReceive(void) { return mqttClient->receive(); }
+  static inline bool mqttSubscribe(const char* __restrict topic, uint8_t qos) { return mqttClient->subscribe(topic, qos); }
+  static inline void mqttUnsubscribe(const char* __restrict topic) { mqttClient->unsubscribe(topic); }
+  static inline std::pair<std::string, std::vector<uint8_t>> mqttReceive(void) { return mqttClient->receive(); }
 
 private:
 

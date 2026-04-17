@@ -53,7 +53,7 @@ bool PostgreSQL::executeQuery(const char* __restrict query)
   }
 
   // Execute the provided SQL query
-  PGresult* result = PQexec(connection, query);
+  auto result = PQexec(connection, query);
   if (PQresultStatus(result) != PGRES_COMMAND_OK)
   {
     logger.log(Logger::ERROR, "Query execution failed: %s\n", PQerrorMessage(connection));

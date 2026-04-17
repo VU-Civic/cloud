@@ -168,7 +168,7 @@ bool AwsMQTT::publish(const char* __restrict topic, const uint8_t* __restrict pa
   return false;
 }
 
-std::vector<uint8_t> AwsMQTT::receive(void)
+std::pair<std::string, std::vector<uint8_t>> AwsMQTT::receive(void)
 {
   // Wait for a published packet to be received or the client disconnected
   std::unique_lock<std::mutex> lock(receiveMutex);
@@ -180,7 +180,7 @@ std::vector<uint8_t> AwsMQTT::receive(void)
     return packet;
   }
   else
-    return std::vector<uint8_t>();
+    return std::make_pair(std::string(), std::vector<uint8_t>());
 }
 
 void AwsMQTT::onAttemptingConnect(const Aws::Crt::Mqtt5::OnAttemptingConnectEventData&) { logger.log(Logger::INFO, "AWS MQTT: Attempting to connect to MQTT Broker...\n"); }
@@ -213,7 +213,7 @@ void AwsMQTT::onPublishReceived(const Aws::Crt::Mqtt5::PublishReceivedEventData&
     std::lock_guard<std::mutex> lock(receiveMutex);
     std::vector<uint8_t> payload(eventData.publishPacket->getPayload().len);
     memcpy(payload.data(), eventData.publishPacket->getPayload().ptr, eventData.publishPacket->getPayload().len);
-    receivedPackets.push_back(std::move(payload));
+    receivedPackets.push_back(std::make_pair(std::string(eventData.publishPacket->getTopic().c_str()), std::move(payload)));
   }
   packetReceived.notify_one();
 }

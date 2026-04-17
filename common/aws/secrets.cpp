@@ -22,10 +22,10 @@ std::string AwsSecrets::getParameter(const char* __restrict parameterID)
   return parameterValue;
 }
 
-rapidjson::Document AwsSecrets::getSecret(const char* __restrict secretID)
+JsonObject AwsSecrets::getSecret(const char* __restrict secretID)
 {
   // Ensure that the Secrets Manager client was properly initialized
-  rapidjson::Document secretJson;
+  JsonObject secretJson;
   if (!secretsClient.get() || !secretID || secretID[0] == '\0') return secretJson;
 
   // Retrieve the specified secret from AWS Secrets Manager
@@ -33,27 +33,23 @@ rapidjson::Document AwsSecrets::getSecret(const char* __restrict secretID)
   getSecretValueRequest.SetSecretId(secretID);
   const auto getSecretValueOutcome(secretsClient->GetSecretValue(getSecretValueRequest));
   if (getSecretValueOutcome.IsSuccess())
-    secretJson.Parse(getSecretValueOutcome.GetResult().GetSecretString().c_str());
+    secretJson = JsonParser::parseJsonString(getSecretValueOutcome.GetResult().GetSecretString().c_str());
   else
     logger.log(Logger::ERROR, "AWS SecretManager: GetSecret failed for key '%s' with error: %s\n", secretID, getSecretValueOutcome.GetError().GetMessage().c_str());
 
   // Ensure that the secret JSON was properly parsed
-  if (secretJson.HasParseError())
-  {
-    logger.log(Logger::ERROR, "AWS SecretManager: Failed to parse secret for key '%s'\n", secretID);
-    secretJson.SetNull();
-  }
+  if (secretJson.empty()) logger.log(Logger::ERROR, "AWS SecretManager: Failed to parse secret for key '%s'\n", secretID);
 
   // Return the parsed secret JSON
   return secretJson;
 }
 
-std::string AwsSecrets::extractSecretValue(const rapidjson::Document& secretJson, const char* __restrict valueKey) const
+std::string AwsSecrets::extractSecretValue(const JsonObject& secretJson, const char* __restrict valueKey) const
 {
   // Extract the specified value from the secret JSON
   std::string secretValue;
-  if (secretJson.IsObject() && secretJson.HasMember(valueKey) && secretJson[valueKey].IsString())
-    secretValue = secretJson[valueKey].GetString();
+  if (secretJson.contains(valueKey) && !secretJson.at(valueKey).asString().empty())
+    secretValue = secretJson.at(valueKey).asString();
   else
     logger.log(Logger::ERROR, "AWS SecretManager: Secret JSON does not contain string value for key '%s'\n", valueKey);
   return secretValue;

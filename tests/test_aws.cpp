@@ -1,3 +1,4 @@
+#include <curl/curl.h>
 #include "Common.h"
 #include "mqtt.h"
 #include "s3.h"
@@ -6,6 +7,13 @@
 
 // Global application logger
 Logger logger("/tmp/civicalert.log", Logger::DEBUG);
+
+static size_t writeCurlDataString(void* downloadedData, size_t wordSize, size_t numWords, void* outputStringPtr)
+{
+  const auto outputSize = wordSize * numWords;
+  static_cast<std::string*>(outputStringPtr)->append(static_cast<char*>(downloadedData), outputSize);
+  return outputSize;
+}
 
 void testSecrets(void)
 {
@@ -32,6 +40,51 @@ void testSecrets(void)
   printf("MQTT_CA: %s\n", secretManager.extractSecretValue(mqttCredentials, mqttCAKey.c_str()).c_str());
   printf("MQTT_CLIENT_CERT: %s\n", secretManager.extractSecretValue(mqttCredentials, mqttClientCertKey.c_str()).c_str());
   printf("MQTT_CLIENT_KEY: %s\n", secretManager.extractSecretValue(mqttCredentials, mqttClientKeyKey.c_str()).c_str());
+  printf("API_ENDPOINT_URL: %s\n", secretManager.getParameter(CivicAlert::AWS_PARAMETER_KEY_API_ENDPOINT_URL).c_str());
+  std::string apiEndpointTokenKey(secretManager.getParameter(CivicAlert::AWS_PARAMETER_KEY_API_ENDPOINT_TOKEN_KEY));
+  printf("API_ENDPOINT_TOKEN_KEY: %s\n", apiEndpointTokenKey.c_str());
+  const auto apiEndpointTokenSecret = secretManager.getSecret(apiEndpointTokenKey.c_str());
+  printf("API_ENDPOINT_TOKEN_SECRET: %s\n", secretManager.extractSecretValue(apiEndpointTokenSecret, "token").c_str());
+}
+
+void testApiEndpoint(void)
+{
+  // Retrieve the API endpoint URL and bearer token from AWS secrets
+  AwsSecrets secretManager;
+  std::string apiEndpointUrl(secretManager.getParameter(CivicAlert::AWS_PARAMETER_KEY_API_ENDPOINT_URL));
+  std::string apiEndpointTokenKey(secretManager.getParameter(CivicAlert::AWS_PARAMETER_KEY_API_ENDPOINT_TOKEN_KEY));
+  const auto apiEndpointTokenSecret = secretManager.getSecret(apiEndpointTokenKey.c_str());
+  std::string apiEndpointToken = secretManager.extractSecretValue(apiEndpointTokenSecret, "token");
+
+  // Initialize the cURL library and set default options for all future cURL requests
+  void* curl = curl_easy_init();
+  curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+  curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
+  curl_easy_setopt(curl, CURLOPT_USERAGENT, "CivicAlertTest/1.0");
+  curl_easy_setopt(curl, CURLOPT_AUTOREFERER, 1L);
+  curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+  curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "deflate");
+
+  // Attempt to issue a "whoami" request to the API endpoint with the retrieved URL and token
+  std::string output;
+  auto headers = curl_slist_append(nullptr, "Content-Type: application/json");
+  headers = curl_slist_append(headers, (std::string("Authorization: Token ") + apiEndpointToken).c_str());
+  curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 1);
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &writeCurlDataString);
+  curl_easy_setopt(curl, CURLOPT_URL, (apiEndpointUrl + "/auth/whoami").c_str());
+  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, &output);
+  if (curl_easy_perform(curl) == CURLE_OK)
+    printf("API WHOAMI Endpoint Response: %s\n", output.c_str());
+  else
+    printf("API WHOAMI Endpoint request failed\n");
+
+  // Clean up the cURL library
+  if (curl)
+  {
+    curl_easy_cleanup(curl);
+    curl = nullptr;
+  }
 }
 
 void testS3(const char* s3BucketName)
@@ -104,8 +157,8 @@ void testMQTT(void)
       [&mqtt]()
       {
         auto receivedMessage = mqtt.receive();
-        if (!receivedMessage.empty())
-          printf("MQTT Received message: %s\n", receivedMessage.data());
+        if (!receivedMessage.second.empty())
+          printf("MQTT Received message from Topic \"%s\": %s\n", receivedMessage.first.c_str(), receivedMessage.second.data());
         else
           printf("MQTT No message received\n");
       });
@@ -121,11 +174,15 @@ void testMQTT(void)
 
 int main(void)
 {
-  // Initialize the AWS SDK
+  // Initialize the AWS SDK and cURL library
   AWS::initialize();
+  curl_global_init(CURL_GLOBAL_ALL);
 
   // Test AWS Secrets Manager
   testSecrets();
+
+  // Test CivicAlert AWS API Endpoint
+  testApiEndpoint();
 
   // Test AWS S3
   AwsSecrets secretManager;
@@ -137,7 +194,8 @@ int main(void)
   // Test AWS MQTT
   testMQTT();
 
-  // Uninitialize the AWS SDK
+  // Uninitialize the AWS SDK and cURL library
+  curl_global_cleanup();
   AWS::uninitialize();
   return 0;
 }

@@ -1,7 +1,7 @@
 #ifndef __AWS_SECRETS_HEADER_H__
 #define __AWS_SECRETS_HEADER_H__
 
-#include <rapidjson/document.h>
+#include "JsonParser.h"
 #include "aws.h"
 
 class AwsSecrets final
@@ -16,8 +16,8 @@ public:
 
   // AWS Secrets Manager functionality
   std::string getParameter(const char* __restrict parameterID);
-  rapidjson::Document getSecret(const char* __restrict secretID);
-  std::string extractSecretValue(const rapidjson::Document& secretJson, const char* __restrict valueKey) const;
+  JsonObject getSecret(const char* __restrict secretID);
+  std::string extractSecretValue(const JsonObject& secretJson, const char* __restrict valueKey) const;
 
 private:
 

@@ -31,7 +31,6 @@ private:
   static std::mutex initializationMutex;
   static std::atomic_uint32_t numActiveThreads;
   static std::unique_ptr<PostgreSQL> evidenceDatabase;
-  static std::string alertTableName;
 };
 
 #endif  // #ifndef __EVIDENCE_PROCESSOR_HEADER_H__

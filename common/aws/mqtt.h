@@ -22,7 +22,7 @@ public:
   bool subscribe(const char* __restrict topic, uint8_t qos);
   void unsubscribe(const char* __restrict topic);
   bool publish(const char* __restrict topic, const uint8_t* __restrict payload, size_t payloadLength, uint8_t qos, bool retain);
-  std::vector<uint8_t> receive(void);
+  std::pair<std::string, std::vector<uint8_t>> receive(void);
 
 private:
 
@@ -35,7 +35,7 @@ private:
   void onClientStopped(const Aws::Crt::Mqtt5::OnStoppedEventData&);
 
   // Private member variables
-  std::deque<std::vector<uint8_t>> receivedPackets;
+  std::deque<std::pair<std::string, std::vector<uint8_t>>> receivedPackets;
   std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> mqttClient;
   std::promise<bool> clientConnected, clientStopped;
   std::condition_variable packetReceived;

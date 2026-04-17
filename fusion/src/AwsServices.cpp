@@ -18,16 +18,16 @@ void AwsServices::initialize(void)
   secretManager = std::make_unique<AwsSecrets>();
 
   // Retrieve all necessary AWS parameters and secrets
-  std::string mqttCredentialsKey(secretManager->getParameter(CivicAlert::AWS_PARAMETER_KEY_MQTT_CREDENTIALS_KEY));
-  std::string mqttCAKey(secretManager->getParameter(CivicAlert::AWS_PARAMETER_KEY_MQTT_CA_KEY));
-  std::string mqttClientCertKey(secretManager->getParameter(CivicAlert::AWS_PARAMETER_KEY_MQTT_CLIENT_CERT_KEY));
-  std::string mqttClientKeyKey(secretManager->getParameter(CivicAlert::AWS_PARAMETER_KEY_MQTT_CLIENT_KEY_KEY));
+  const auto mqttCredentialsKey = secretManager->getParameter(CivicAlert::AWS_PARAMETER_KEY_MQTT_CREDENTIALS_KEY);
+  const auto mqttCAKey = secretManager->getParameter(CivicAlert::AWS_PARAMETER_KEY_MQTT_CA_KEY);
+  const auto mqttClientCertKey = secretManager->getParameter(CivicAlert::AWS_PARAMETER_KEY_MQTT_CLIENT_CERT_KEY);
+  const auto mqttClientKeyKey = secretManager->getParameter(CivicAlert::AWS_PARAMETER_KEY_MQTT_CLIENT_KEY_KEY);
   const auto mqttCredentials = secretManager->getSecret(mqttCredentialsKey.c_str());
-  std::string mqttCa(secretManager->extractSecretValue(mqttCredentials, mqttCAKey.c_str()));
-  std::string mqttClientCert(secretManager->extractSecretValue(mqttCredentials, mqttClientCertKey.c_str()));
-  std::string mqttClientKey(secretManager->extractSecretValue(mqttCredentials, mqttClientKeyKey.c_str()));
-  std::string mqttEndpoint(secretManager->getParameter(CivicAlert::AWS_PARAMETER_KEY_MQTT_ENDPOINT).c_str());
-  std::string mqttPort(secretManager->getParameter(CivicAlert::AWS_PARAMETER_KEY_MQTT_PORT).c_str());
+  const auto mqttCa = secretManager->extractSecretValue(mqttCredentials, mqttCAKey.c_str());
+  const auto mqttClientCert = secretManager->extractSecretValue(mqttCredentials, mqttClientCertKey.c_str());
+  const auto mqttClientKey = secretManager->extractSecretValue(mqttCredentials, mqttClientKeyKey.c_str());
+  const auto mqttEndpoint = secretManager->getParameter(CivicAlert::AWS_PARAMETER_KEY_MQTT_ENDPOINT);
+  const auto mqttPort = secretManager->getParameter(CivicAlert::AWS_PARAMETER_KEY_MQTT_PORT);
 
   // Ensure that all required parameters and secrets were retrieved
   if (mqttCa.empty() || mqttClientCert.empty() || mqttClientKey.empty() || mqttEndpoint.empty() || mqttPort.empty())

@@ -10,7 +10,6 @@ int EvidenceProcessor::referenceCount = 0;
 std::mutex EvidenceProcessor::initializationMutex;
 std::atomic_uint32_t EvidenceProcessor::numActiveThreads{0};
 std::unique_ptr<PostgreSQL> EvidenceProcessor::evidenceDatabase;
-std::string EvidenceProcessor::alertTableName;
 
 void EvidenceProcessor::connectToEvidenceDatabase(void)
 {
@@ -44,7 +43,6 @@ void EvidenceProcessor::initialize(void)
   if (referenceCount++ > 0) return;
 
   // Establish a connection to the evidence database
-  alertTableName = AwsServices::getSecretParameter(CivicAlert::AWS_PARAMETER_KEY_DB_ALERTS_TABLE);
   connectToEvidenceDatabase();
 }
 
@@ -102,7 +100,7 @@ void EvidenceProcessor::processEvidenceWorker(uint64_t deviceID, uint8_t clipID,
   // Open a memory stream for reading the raw evidence data
   EvidenceOpusFrame evidenceFrame;
   int16_t decodedPacket[CivicAlert::EVIDENCE_DECODED_FRAME_SAMPLES];
-  FILE* evidenceData = fmemopen(rawEvidence.data(), rawEvidence.size(), "rb");
+  auto* evidenceData = fmemopen(rawEvidence.data(), rawEvidence.size(), "rb");
   if (!evidenceData)
   {
     logger.log(Logger::ERROR, "Failed to open evidence data stream for Device #%llu, Clip #%u\n", deviceID, clipID);
@@ -175,12 +173,8 @@ void EvidenceProcessor::processEvidenceWorker(uint64_t deviceID, uint8_t clipID,
   logger.log(Logger::INFO, "Storing evidence clip to AWS S3 as %s\n", fileName.c_str());
   if (AwsServices::storeEvidenceClipToS3(fileName.c_str(), localFileName.c_str()))
   {
-    const std::string evidenceUpdateQuery = std::string("WITH updated AS(UPDATE ") + std::string(CivicAlert::DB_EVIDENCE_CLIP_TABLE_NAME) + std::string(" SET file_name='") +
-                                            fileName + std::string("' WHERE device_id=") + std::to_string(deviceID) + std::string(" AND clip_locator_id=") +
-                                            std::to_string(clipID) + std::string(" AND clip_timestamp>NOW() - INTERVAL '1 minute' RETURNING *) INSERT INTO ") +
-                                            std::string(CivicAlert::DB_EVIDENCE_CLIP_TABLE_NAME) + std::string(" (device_id, clip_locator_id, file_name) SELECT ") +
-                                            std::to_string(deviceID) + std::string(", ") + std::to_string(clipID) + std::string(", '") + fileName +
-                                            std::string("' WHERE NOT EXISTS (SELECT 1 FROM updated);");
+    const auto evidenceUpdateQuery = std::string("CALL insert_or_update_clip(") + std::to_string(deviceID) + std::string("::int8, ") + std::to_string(clipID) +
+                                     std::string("::int2, '") + fileName + std::string("'::varchar);");
     while (!evidenceDatabase->executeQuery(evidenceUpdateQuery.c_str()) && !evidenceDatabase->isConnected())
     {
       // Attempt to reestablish a lost database connection
@@ -192,6 +186,6 @@ void EvidenceProcessor::processEvidenceWorker(uint64_t deviceID, uint8_t clipID,
     logger.log(Logger::ERROR, "Failed to store clip!\n");
 
   // Delete the temporary local evidence clip file and decrement the active thread count
-  std::remove(localFileName.c_str());
+  std::filesystem::remove(localFileName);
   numActiveThreads.fetch_sub(1);
 }

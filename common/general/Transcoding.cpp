@@ -19,19 +19,84 @@ uint32_t Transcoding::hexEncode(uint8_t* __restrict output, const uint8_t* __res
 
 uint32_t Transcoding::base64Encode(uint8_t* __restrict output, const uint8_t* __restrict input, uint32_t inputNumBytes)
 {
-  // Set up OpenSSL BIO objects for Base64 encoding
-  auto* bioB64 = BIO_new(BIO_f_base64());
-  auto* bioMem = BIO_push(bioB64, BIO_new_mem_buf(output, -1));
-  BIO_set_flags(bioMem, BIO_FLAGS_BASE64_NO_NL);
+  // The standard Base64 alphabet table
+  static const char encodingTable[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-  // Encode the input data into Base64 format
-  BIO_write(bioMem, input, static_cast<int>(inputNumBytes));
-  BIO_flush(bioMem);
-  const auto encodedLength = BIO_ctrl_pending(bioMem);
+  // Iterate through all input characters in groups of 3 bytes
+  uint32_t inIdx = 0, outIdx = 0;
+  const uint32_t threeBytePackets = inputNumBytes / 3;
+  for (uint32_t i = 0; i < threeBytePackets; ++i, inIdx += 3, outIdx += 4)
+  {
+    const uint32_t a = input[inIdx], b = input[inIdx + 1], c = input[inIdx + 2];
+    const uint32_t triple = (a << 16) + (b << 8) + c;
+    output[outIdx] = encodingTable[(triple >> 18) & 0x3F];
+    output[outIdx + 1] = encodingTable[(triple >> 12) & 0x3F];
+    output[outIdx + 2] = encodingTable[(triple >> 6) & 0x3F];
+    output[outIdx + 3] = encodingTable[triple & 0x3F];
+  }
 
-  // Clean up OpenSSL BIO objects
-  BIO_free_all(bioMem);
-  return static_cast<uint32_t>(encodedLength);
+  // Pad and encode any remaining bytes
+  const uint32_t remaining = inputNumBytes - inIdx;
+  if (remaining == 1)
+  {
+    const uint32_t triple = (uint32_t)input[inIdx] << 16;
+    output[outIdx] = encodingTable[(triple >> 18) & 0x3F];
+    output[outIdx + 1] = encodingTable[(triple >> 12) & 0x3F];
+    output[outIdx + 2] = '=';
+    output[outIdx + 3] = '=';
+    outIdx += 4;
+  }
+  else if (remaining == 2)
+  {
+    const uint32_t triple = ((uint32_t)input[inIdx] << 16) | ((uint32_t)input[inIdx + 1] << 8);
+    output[outIdx] = encodingTable[(triple >> 18) & 0x3F];
+    output[outIdx + 1] = encodingTable[(triple >> 12) & 0x3F];
+    output[outIdx + 2] = encodingTable[(triple >> 6) & 0x3F];
+    output[outIdx + 3] = '=';
+    outIdx += 4;
+  }
+  return outIdx;
+}
+
+uint32_t Transcoding::base85Encode(uint8_t* __restrict output, const uint8_t* __restrict input, uint32_t inputNumBytes)
+{
+  // Iterate through all input bytes in groups of 4
+  uint32_t inIdx = 0, outIdx = 0;
+  const uint32_t fourBytePackets = inputNumBytes >> 2;
+  for (uint32_t i = 0; i < fourBytePackets; ++i, inIdx += 4, outIdx += 5)
+  {
+    uint32_t val = ((uint32_t)input[inIdx] << 24) | ((uint32_t)input[inIdx + 1] << 16) | ((uint32_t)input[inIdx + 2] << 8) | ((uint32_t)input[inIdx + 3]);
+    uint32_t q = (uint32_t)(((uint64_t)val * 3233857729ULL) >> 38);
+    output[outIdx + 4] = '!' + (val - (q * 85));
+    val = q;
+    q = (uint32_t)(((uint64_t)val * 3233857729ULL) >> 38);
+    output[outIdx + 3] = '!' + (val - (q * 85));
+    val = q;
+    q = (uint32_t)(((uint64_t)val * 3233857729ULL) >> 38);
+    output[outIdx + 2] = '!' + (val - (q * 85));
+    val = q;
+    q = (uint32_t)(((uint64_t)val * 3233857729ULL) >> 38);
+    output[outIdx + 1] = '!' + (val - (q * 85));
+    output[outIdx] = '!' + q;
+  }
+
+  // Pad and encode any remaining bytes
+  const uint32_t remaining = inputNumBytes - inIdx;
+  if (remaining > 0)
+  {
+    // Pad with zeros to form a full 32-bit value
+    uint32_t val = 0;
+    for (uint32_t j = 0; j < remaining; ++j) val |= (uint32_t)input[inIdx + j] << (24 - (j * 8));
+    char encoded[5];
+    for (int j = 4; j >= 0; --j)
+    {
+      uint32_t q = (uint32_t)(((uint64_t)val * 3233857729ULL) >> 38);
+      encoded[j] = '!' + (val - (q * 85));
+      val = q;
+    }
+    for (uint32_t j = 0; j < remaining + 1; ++j) output[outIdx++] = encoded[j];
+  }
+  return outIdx;
 }
 
 uint32_t Transcoding::yEncEncode(uint8_t* __restrict output, const uint8_t* __restrict input, uint32_t inputNumBytes)
@@ -65,18 +130,90 @@ std::vector<uint8_t> Transcoding::hexDecode(std::vector<uint8_t>&& encodedData)
 
 std::vector<uint8_t> Transcoding::base64Decode(std::vector<uint8_t>&& encodedData)
 {
-  // Set up OpenSSL BIO objects for Base64 decoding
-  auto* bioB64 = BIO_new(BIO_f_base64());
-  auto* bioMem = BIO_push(bioB64, BIO_new_mem_buf(encodedData.data(), static_cast<int>(encodedData.size())));
-  BIO_set_flags(bioMem, BIO_FLAGS_BASE64_NO_NL);
+  static const uint8_t decodingTable[256] = {0, 0, 0, 0, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 0,
+                                             0, 0, 0, 0, 0,  0,  0,  0,  0,  0,  0,  0,  62, 0,  0,  0,  63, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 0,  0,  0, 0,
+                                             0, 0, 0, 0, 1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 0, 0,
+                                             0, 0, 0, 0, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51};
 
-  // Decode the Base64 data into a byte vector
-  std::vector<uint8_t> decodedData(encodedData.size());
-  const auto decodedLength = BIO_read(bioMem, decodedData.data(), static_cast<int>(decodedData.size()));
-  decodedData.resize(decodedLength > 0 ? static_cast<size_t>(decodedLength) : 0);
+  // Count trailing '=' padding to determine final byte count
+  uint32_t padding = 0, inIdx = 0, outIdx = 0;
+  const uint32_t fourCharPackets = encodedData.size() >> 2;
+  if (encodedData.size() >= 1 && encodedData[encodedData.size() - 1] == '=') ++padding;
+  if (encodedData.size() >= 2 && encodedData[encodedData.size() - 2] == '=') ++padding;
 
-  // Clean up OpenSSL BIO objects
-  BIO_free_all(bioMem);
+  // Decode all full groups except the last (which may have padding)
+  std::vector<uint8_t> decodedData;
+  decodedData.reserve((fourCharPackets * 3) - padding);
+  const uint32_t fullPackets = (padding > 0) ? fourCharPackets - 1 : fourCharPackets;
+  for (uint32_t i = 0; i < fullPackets; ++i, inIdx += 4, outIdx += 3)
+  {
+    const uint8_t d0 = decodingTable[encodedData[inIdx]];
+    const uint8_t d1 = decodingTable[encodedData[inIdx + 1]];
+    const uint8_t d2 = decodingTable[encodedData[inIdx + 2]];
+    const uint8_t d3 = decodingTable[encodedData[inIdx + 3]];
+    const uint32_t triple = ((uint32_t)d0 << 18) | ((uint32_t)d1 << 12) | ((uint32_t)d2 << 6) | ((uint32_t)d3);
+    decodedData.push_back((uint8_t)(triple >> 16));
+    decodedData.push_back((uint8_t)(triple >> 8));
+    decodedData.push_back((uint8_t)(triple));
+  }
+
+  // Decode the final group if it contains padding
+  if (padding > 0)
+  {
+    const uint8_t d0 = decodingTable[encodedData[inIdx]];
+    const uint8_t d1 = decodingTable[encodedData[inIdx + 1]];
+    const uint32_t triple = ((uint32_t)d0 << 18) | ((uint32_t)d1 << 12);
+    if (padding == 2)
+      decodedData.push_back((uint8_t)(triple >> 16));
+    else
+    {
+      // 3 encoded chars -> 2 bytes
+      const uint8_t d2 = decodingTable[encodedData[inIdx + 2]];
+      const uint32_t full = triple | ((uint32_t)d2 << 6);
+      decodedData.push_back((uint8_t)(full >> 16));
+      decodedData.push_back((uint8_t)(full >> 8));
+    }
+  }
+  return decodedData;
+}
+
+std::vector<uint8_t> Transcoding::base85Decode(std::vector<uint8_t>&& encodedData)
+{
+  // Decode Base85-encoded data
+  std::vector<uint8_t> decodedData;
+  const size_t fiveCharPackets = encodedData.size() / 5;
+  const size_t remaining = encodedData.size() - (fiveCharPackets * 5);
+  decodedData.reserve((fiveCharPackets * 4) + ((remaining > 1) ? (remaining - 1) : 0));
+  for (size_t i = 0, inIdx = 0; i < fiveCharPackets; ++i, inIdx += 5)
+  {
+    // Decode 5 ASCII characters into their 0–84 digit values
+    const uint32_t d0 = encodedData[inIdx] - '!';
+    const uint32_t d1 = encodedData[inIdx + 1] - '!';
+    const uint32_t d2 = encodedData[inIdx + 2] - '!';
+    const uint32_t d3 = encodedData[inIdx + 3] - '!';
+    const uint32_t d4 = encodedData[inIdx + 4] - '!';
+
+    // Reconstruct the 32-bit value using Horner's method
+    const uint32_t val = ((((d0 * 85 + d1) * 85 + d2) * 85) + d3) * 85 + d4;
+
+    // Extract 4 bytes in big-endian order
+    decodedData.push_back((uint8_t)(val >> 24));
+    decodedData.push_back((uint8_t)(val >> 16));
+    decodedData.push_back((uint8_t)(val >> 8));
+    decodedData.push_back((uint8_t)(val));
+  }
+
+  // Handle remaining characters
+  if (remaining > 1)
+  {
+    uint32_t digits[5] = {84, 84, 84, 84, 84};
+    for (size_t j = 0; j < remaining; ++j) digits[j] = encodedData[(fiveCharPackets * 5) + j] - '!';
+    const uint32_t val = ((((digits[0] * 85 + digits[1]) * 85 + digits[2]) * 85) + digits[3]) * 85 + digits[4];
+    const size_t output_bytes = remaining - 1;
+    if (output_bytes >= 1) decodedData.push_back((uint8_t)(val >> 24));
+    if (output_bytes >= 2) decodedData.push_back((uint8_t)(val >> 16));
+    if (output_bytes >= 3) decodedData.push_back((uint8_t)(val >> 8));
+  }
   return decodedData;
 }
 
