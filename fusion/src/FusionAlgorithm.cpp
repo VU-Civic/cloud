@@ -24,12 +24,12 @@ void Fusion::cleanup(void)
   weatherRetriever.removePublicApiService(WeatherDataRetriever::PublicAPI::TOMORROW_IO);
 }
 
-bool Fusion::validateFeasibility(const std::vector<std::shared_ptr<GunshotReport>>& packetBundle, const GunshotReport* validationPacket, const GunshotReport* packet)
+bool Fusion::validateFeasibility(const GunshotReport* validationPacket, const GunshotReport* packet)
 {
   return ((packet->timestamp - validationPacket->timestamp) <=
           CivicAlert::FUSION_MAX_POSSIBLE_TIME_DIFFERENCE_SECONDS) &&  // TODO: TIME DIFFERENCE DOESN'T MAKE AS MUCH SENSE IF WE ARE ALLOWING MULTIPLE SHOTS IN SAME BUNDLE
          (GeoMath::calculateDistance3D(validationPacket->lat, validationPacket->lon, validationPacket->ht, packet->lat, packet->lon, packet->ht) <
-          CivicAlert::FUSION_MAX_POSSIBLE_DISTANCE_METERS);
+          CivicAlert::FUSION_MAX_POSSIBLE_DISTANCE_METERS);  // TODO: 2.0*MAX_DISTANCE TO MAKE DISTANCE A WORST-CASE RADIUS FROM SHOOTER, NOT FROM SENSOR
 }
 
 // TODO: KEEP TRACK OF PREVIOUS LOCALIZATIONS IN SAME AREA TO INCREASE LIKELIHOOD THAT SHOOTING HAPPENED AT SAME SPOT, DECAY OVER TIME

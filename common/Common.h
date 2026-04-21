@@ -1,6 +1,8 @@
 #ifndef __COMMON_HEADER_H__
 #define __COMMON_HEADER_H__
 
+#include <atomic>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <string>
@@ -67,7 +69,7 @@ typedef struct __attribute__((__packed__))
   char firmwareVersion[FIRMWARE_VERSION_LENGTH], aiFirmwareVersion[FIRMWARE_VERSION_LENGTH];
   float lat, lon, ht;
   int32_t q1, q2, q3;
-  uint8_t signalPower, signalQuality;
+  uint8_t signalPower, signalQuality, reserved;
   ChannelAlarms channelAlarms;
   ConfigData deviceConfig;
 } DeviceInfoMessage;
@@ -76,7 +78,7 @@ typedef struct __attribute__((__packed__))
 typedef struct __attribute__((__packed__))
 {
   double timestamp;
-  float confidence, angleOfArrival[3];
+  float confidence, magnitude, angleOfArrival[3];
 } EventInfo;
 
 // MQTT alert message constants
@@ -91,8 +93,18 @@ typedef struct __attribute__((__packed__))
 } AlertMessage;
 
 // Gunshot report structure for individual extracted shot alerts
-typedef struct
+typedef struct GunshotReport
 {
+  GunshotReport(std::chrono::steady_clock::time_point receptionTime, uint64_t deviceID, double timestamp, float lat, float lon, float ht, float x, float y, float z,
+                float sourceAzimuth, float sourceElevation, float confidence, float orientationQW, float orientationQX, float orientationQY, float orientationQZ,
+                uint8_t audioLocatorID)
+      : receptionTime(receptionTime), reportInUse(false), deviceID(deviceID), reportID(0), timestamp(timestamp), lat(lat), lon(lon), ht(ht), x(x), y(y), z(z),
+        sourceAzimuth(sourceAzimuth), sourceElevation(sourceElevation), confidence(confidence), orientationQW(orientationQW), orientationQX(orientationQX),
+        orientationQY(orientationQY), orientationQZ(orientationQZ), audioLocatorID(audioLocatorID), usedInFusion(false)
+  {
+  }
+  std::chrono::steady_clock::time_point receptionTime;
+  std::atomic_flag reportInUse;
   uint64_t deviceID, reportID;
   double timestamp;
   float lat, lon, ht, x, y, z, east, north, up;
@@ -101,6 +113,13 @@ typedef struct
   uint8_t audioLocatorID;
   bool usedInFusion;
 } GunshotReport;
+
+// Packet structure for reports that are pending fusion
+typedef struct
+{
+  std::shared_ptr<GunshotReport> validationReport;
+  std::vector<std::shared_ptr<GunshotReport>> reports;
+} ReportPacket;
 
 // Fused incident message
 typedef struct
@@ -159,13 +178,14 @@ namespace CivicAlert
   constexpr const unsigned int EVIDENCE_DECODED_FRAME_SAMPLES = (EVIDENCE_AUDIO_SAMPLE_RATE_HZ / 1000) * EVIDENCE_AUDIO_MS_PER_FRAME;
 
   // Alert processing parameters
-  constexpr const int ALERT_PROCESSING_TIMEOUT_MS = 5000;
+  constexpr const int ALERT_MIN_PROCESSING_TIMEOUT_MS = 5000;
+  constexpr const int ALERT_NON_REPORT_PROCESSING_TIMEOUT_MS = 1000;
 
   // Fusion algorithm parameters
   constexpr const uint8_t FUSION_MIN_NUM_EVENTS = 3;  // TODO: LOWER THIS IF FEWER SENSORS IN AREA, MAYBE MAKE THIS ENTIRELY DEPENDENT ON SENSOR DENSITY
   constexpr const int FUSION_MAX_NUM_EVENTS = 32;
   constexpr const double FUSION_MAX_POSSIBLE_TIME_DIFFERENCE_SECONDS = 0.8;
-  constexpr const float FUSION_MAX_POSSIBLE_DISTANCE_METERS = 250.0;
+  constexpr const float FUSION_MAX_POSSIBLE_DISTANCE_METERS = 1000.0;
   constexpr const int MIN_NUM_HOUGH_PEAKS_FOR_FUSION = 4;
   constexpr const float HOUGH_TRANSFORM_FINE_RESOLUTION_METERS = 1.0f;  // TODO: DO I NEED ALL OF THESE
   constexpr const float HOUGH_TRANSFORM_MEDIUM_RESOLUTION_METERS = 5.0f;

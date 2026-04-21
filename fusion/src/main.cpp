@@ -1,7 +1,7 @@
 #include "AwsServices.h"
 #include "Common.h"
 #include "FusionAlgorithm.h"
-#include "PacketReceiver.h"
+#include "MessageReceiver.h"
 #include "ProcessUtils.h"
 #include "WeatherRetriever.h"
 
@@ -13,7 +13,7 @@ static void globalCleanup(void)
 {
   // Stop all running tasks
   logger.log(Logger::INFO, "Application shutting down...\n");
-  PacketReceiver::stopListening();
+  MessageReceiver::stopListening();
 
   // Clean up any libraries that may have been initialized
   Fusion::cleanup();
@@ -37,7 +37,7 @@ int main(void)
   // Enable log file rotation
   logger.enableRotation(CivicAlert::LOG_FILE_ROTATION_DIRECTORY, CivicAlert::LOG_FILE_ROTATION_INTERVAL_SECONDS);
 
-  // Subscribe to incoming device info and alert packets over MQTT
+  // Subscribe to incoming device info and alert messages over MQTT
   logger.log(Logger::INFO, "Subscribing to the MQTT device info and alerts topics...\n");
   if (!AwsServices::mqttConnect()) exit(EXIT_FAILURE);
   const auto mqttDeviceInfoTopic = AwsServices::getSecretParameter(CivicAlert::AWS_PARAMETER_KEY_MQTT_DEVICE_INFO_TOPIC);
@@ -46,8 +46,8 @@ int main(void)
   if (!AwsServices::mqttSubscribe(mqttAlertsTopic.c_str(), 1)) exit(EXIT_FAILURE);
   logger.log(Logger::INFO, "MQTT topic subscription complete\n");
 
-  // Listen for incoming MQTT packets until a termination signal is received
-  PacketReceiver::listenForPackets(mqttDeviceInfoTopic.c_str(), mqttAlertsTopic.c_str());
+  // Listen for incoming MQTT messages until a termination signal is received
+  MessageReceiver::listenForMessages(mqttDeviceInfoTopic.c_str(), mqttAlertsTopic.c_str());
   ProcessUtils::runUntilTermination();
 
   // Return success

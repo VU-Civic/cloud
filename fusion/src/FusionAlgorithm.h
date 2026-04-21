@@ -14,7 +14,7 @@ public:
   static void cleanup(void);
 
   // Packet feasibility with respect to a validation packet
-  static bool validateFeasibility(const std::vector<std::shared_ptr<GunshotReport>>& packetBundle, const GunshotReport* validationPacket, const GunshotReport* packet);
+  static bool validateFeasibility(const GunshotReport* validationPacket, const GunshotReport* packet);
 
   // Fusion algorithm
   static IncidentMessage performFusion(const std::vector<std::shared_ptr<GunshotReport>>& packetBundle);

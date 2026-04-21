@@ -3,7 +3,7 @@
 BUILD := bin
 TARGET := SensorFusion
 
-SRC := main.cpp AwsServices.cpp FusionAlgorithm.cpp HoughTransform.cpp PacketReceiver.cpp StorageDatabase.cpp WeatherRetriever.cpp
+SRC := main.cpp AwsServices.cpp FusionAlgorithm.cpp HoughTransform.cpp MessageReceiver.cpp StorageDatabase.cpp WeatherRetriever.cpp
 COMMON_SRC := aws.cpp mqtt.cpp secrets.cpp GeoMath.cpp JsonParser.cpp Logger.cpp PostgreSQL.cpp ProcessUtils.cpp Transcoding.cpp NoaaWeatherAPI.cpp OpenWeatherMapAPI.cpp TomorrowIoAPI.cpp WeatherDataRetriever.cpp
 VPATH := . ../common ../common/aws ../common/general ../common/weather src
 OBJECTS := $(COMMON_SRC:%.cpp=$(BUILD)/%.o) $(SRC:%.cpp=$(BUILD)/%.o)

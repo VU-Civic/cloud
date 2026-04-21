@@ -1,7 +1,6 @@
 #ifndef __PACKET_RECEIVER_HEADER_H__
 #define __PACKET_RECEIVER_HEADER_H__
 
-#include <atomic>
 #include <thread>
 #include <tuple>
 #include <unordered_map>

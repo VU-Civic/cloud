@@ -1,4 +1,5 @@
 #include <fstream>
+#include "Common.h"
 #include "Logger.h"
 #include "Transcoding.h"
 
@@ -15,6 +16,42 @@ void test_hex_encoding(const uint8_t* data, uint32_t length)
     logger.log(Logger::ERROR, "Hex encoding/decoding failed: decoded data does not match original\n");
   else
     logger.log(Logger::INFO, "Hex encoding/decoding successful\n");
+}
+
+void test_hex_encoding2(void)
+{
+  // Test the hex encoding function with a known input and output
+  const DeviceInfoMessage detectionInfo = {.deviceID = 353760970051308,
+                                           .imsi = "234500091090845",
+                                           .firmwareVersion = "abcdef1",
+                                           .aiFirmwareVersion = "0000000",
+                                           .lat = 37.7749f,
+                                           .lon = -122.4194f,
+                                           .ht = 10.0f,
+                                           .q1 = 100,
+                                           .q2 = 200,
+                                           .q3 = 300,
+                                           .signalPower = 75,
+                                           .signalQuality = 80,
+                                           .channelAlarms{.alarms = 0b00001101},
+                                           .deviceConfig{.initializedTag = 1,
+                                                         .mqttDeviceInfoQos = 1,
+                                                         .mqttAlertQos = 2,
+                                                         .mqttAudioQos = 0,
+                                                         .shotDetectionMinThreshold = 10,
+                                                         .shotDetectionGoodThreshold = 20,
+                                                         .storageClassificationThreshold = 15,
+                                                         .audioClipLengthSeconds = 5,
+                                                         .deviceStatusTransmissionIntervalMinutes = 60,
+                                                         .badAudioRestartAttempted = 0,
+                                                         .badAiRestartAttempted = 0}};
+  std::vector<uint8_t> encodedData(2 * sizeof(DeviceInfoMessage));
+  Transcoding::hexEncode(encodedData.data(), reinterpret_cast<const uint8_t*>(&detectionInfo), sizeof(DeviceInfoMessage));
+  std::vector<uint8_t> decodedData = Transcoding::hexDecode(std::move(encodedData));
+  if (memcmp(decodedData.data(), &detectionInfo, sizeof(DeviceInfoMessage)) != 0)
+    logger.log(Logger::ERROR, "Hex encoding2 failed: decoded data does not match original\n");
+  else
+    logger.log(Logger::INFO, "Hex encoding2 successful\n");
 }
 
 void test_base64_encoding(const uint8_t* data, uint32_t length)
@@ -73,5 +110,8 @@ int main(void)
   test_base64_encoding(audioData.data(), static_cast<uint32_t>(audioData.size()));
   test_base85_encoding(audioData.data(), static_cast<uint32_t>(audioData.size()));
   test_yenc_encoding(audioData.data(), static_cast<uint32_t>(audioData.size()));
+  test_hex_encoding2();
+  return 0;
+
   return 0;
 }
