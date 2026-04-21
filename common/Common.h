@@ -82,7 +82,7 @@ typedef struct __attribute__((__packed__))
 } EventInfo;
 
 // MQTT alert message constants
-#define MAX_NUM_EVENTS_PER_ALERT 12
+#define MAX_NUM_EVENTS_PER_ALERT 24
 typedef struct __attribute__((__packed__))
 {
   uint64_t deviceID;
