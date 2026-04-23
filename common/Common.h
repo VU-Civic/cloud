@@ -158,6 +158,7 @@ namespace CivicAlert
   // MQTT client settings
   constexpr const char* MQTT_CLOUD_CLIENT_ID = "civicalert-cloud-client";
   constexpr const char* MQTT_EVIDENCE_CLIENT_ID = "civicalert-evidence-client";
+  constexpr const char* MQTT_FUSION_CLIENT_ID = "civicalert-fusion-client";
   constexpr const uint32_t MQTT_KEEP_ALIVE_SECONDS = 230;
 
   // Alert database constants

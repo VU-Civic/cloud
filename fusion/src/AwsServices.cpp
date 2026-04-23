@@ -37,7 +37,7 @@ void AwsServices::initialize(void)
   }
 
   // Initialize the AWS S3 MQTT clients
-  mqttClient = std::make_unique<AwsMQTT>(CivicAlert::MQTT_EVIDENCE_CLIENT_ID, mqttCa.c_str(), mqttClientCert.c_str(), mqttClientKey.c_str(), mqttEndpoint.c_str(),
+  mqttClient = std::make_unique<AwsMQTT>(CivicAlert::MQTT_FUSION_CLIENT_ID, mqttCa.c_str(), mqttClientCert.c_str(), mqttClientKey.c_str(), mqttEndpoint.c_str(),
                                          std::stoi(mqttPort.c_str()), CivicAlert::MQTT_KEEP_ALIVE_SECONDS);
   logger.log(Logger::INFO, "AWS clients successfully configured\n");
 }
