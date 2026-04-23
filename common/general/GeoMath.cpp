@@ -131,15 +131,15 @@ std::tuple<float, float, float, float> GeoMath::calculateFullQuaternion(int32_t 
   return std::make_tuple(w, x, y, z);
 }
 
-std::tuple<float, float> GeoMath::calculateSourceDirection(float qw, float qx, float qy, float qz, const float aoa[3])
+std::tuple<float, float> GeoMath::calculateSourceDirection(float qw, float qx, float qy, float qz, float aoa_x, float aoa_y, float aoa_z)
 {
   // const float azimuth = atan2f(aoa[1], aoa[0]), elevation = asinf(aoa[2]);
 
   // Rotate the AoA vector from the sensor frame into the global ENU world frame
-  const auto tx = 2.0f * (qy * aoa[2] - qz * aoa[1]);
-  const auto ty = 2.0f * (qz * aoa[0] - qx * aoa[2]);
-  const auto tz = 2.0f * (qx * aoa[1] - qy * aoa[0]);
-  const float aoaGlobal[3] = {aoa[0] + qw * tx + (qy * tz - qz * ty), aoa[1] + qw * ty + (qz * tx - qx * tz), aoa[2] + qw * tz + (qx * ty - qy * tx)};
+  const auto tx = 2.0f * (qy * aoa_z - qz * aoa_y);
+  const auto ty = 2.0f * (qz * aoa_x - qx * aoa_z);
+  const auto tz = 2.0f * (qx * aoa_y - qy * aoa_x);
+  const float aoaGlobal[3] = {aoa_x + qw * tx + (qy * tz - qz * ty), aoa_y + qw * ty + (qz * tx - qx * tz), aoa_z + qw * tz + (qx * ty - qy * tx)};
   const auto horiz = sqrtf(aoaGlobal[0] * aoaGlobal[0] + aoaGlobal[1] * aoaGlobal[1]);
   const auto azimuth_enu = atan2f(aoaGlobal[1], aoaGlobal[0]);
   const auto elevation = atan2f(aoaGlobal[2], horiz);

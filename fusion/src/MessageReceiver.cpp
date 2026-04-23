@@ -83,7 +83,8 @@ void MessageReceiver::processAlertMessage(const AlertMessage* __restrict message
     // Generate a gunshot report for the individual alert and add it to the database
     logger.log(Logger::INFO, "Received alert message from Device #%llu @ %.6f: Lat = %.4f, Lon = %.4f, Ht = %.4f, Conf = %.4f\n", message->deviceID, message->events[i].timestamp,
                message->sensorLat, message->sensorLon, message->sensorHt, message->events[i].confidence);
-    const auto [azimuth, elevation] = GeoMath::calculateSourceDirection(qw, qx, qy, qz, message->events[i].angleOfArrival);
+    const auto [azimuth, elevation] =
+        GeoMath::calculateSourceDirection(qw, qx, qy, qz, message->events[i].angleOfArrival[0], message->events[i].angleOfArrival[1], message->events[i].angleOfArrival[2]);
     const auto report = std::make_shared<GunshotReport>(receptionTime, message->deviceID, message->events[i].timestamp, message->sensorLat, message->sensorLon, message->sensorHt,
                                                         ecefX, ecefY, ecefZ, azimuth, elevation, message->events[i].confidence, qw, qx, qy, qz, message->audioLocatorID);
     report->reportID = database->addGunshotReport(report.get());

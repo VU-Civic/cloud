@@ -1,4 +1,5 @@
 #include <numeric>
+#include <unordered_map>
 #include "HoughTransform.h"
 
 static const float sinTable[] = {
@@ -15,23 +16,8 @@ static const float sinTable[] = {
     0.173648, 0.156434, 0.139173, 0.121869, 0.104528, 0.087156, 0.069756, 0.052336, 0.034899, 0.017452};
 
 HoughTransform::HoughTransform(void)
-    : is3D(true),
-      minX(0.0f),
-      minY(0.0f),
-      minZ(0.0f),
-      maxX(0.0f),
-      maxY(0.0f),
-      maxZ(0.0f),
-      minT(0.0f),
-      maxT(0.0f),
-      timeResolution(0.0f),
-      posResolution(0.0f),
-      speedOfSound(SPEED_OF_SOUND_IN_AIR_METERS_PER_SECOND()),
-      xNumBins(0),
-      yNumBins(0),
-      zNumBins(0),
-      tNumBins(0),
-      accumulatorBins(nullptr)
+    : is3D(true), minX(0.0f), minY(0.0f), minZ(0.0f), maxX(0.0f), maxY(0.0f), maxZ(0.0f), minT(0.0f), maxT(0.0f), timeResolution(0.0f), posResolution(0.0f),
+      speedOfSound(SPEED_OF_SOUND_IN_AIR_METERS_PER_SECOND()), xNumBins(0), yNumBins(0), zNumBins(0), tNumBins(0), accumulatorBins(nullptr)
 {
 }
 HoughTransform::~HoughTransform(void)

@@ -17,7 +17,7 @@ public:
   static float calculateDistance3D(float latDegrees1, float lonDegrees1, float heightMeters1, float latDegrees2, float lonDegrees2, float heightMeters2);
   static float estimateDistance2D(float lat1Radians, float lon1Radians, float lat2Radians, float lon2Radians);
   static std::tuple<float, float, float, float> calculateFullQuaternion(int32_t q1, int32_t q2, int32_t q3);
-  static std::tuple<float, float> calculateSourceDirection(float qw, float qx, float qy, float qz, const float aoa[3]);
+  static std::tuple<float, float> calculateSourceDirection(float qw, float qx, float qy, float qz, float aoa_x, float aoa_y, float aoa_z);
 };
 
 #endif  // #ifndef __GEO_MATH_HEADER_H__

@@ -92,7 +92,7 @@ void test_calculate_source_direction(void)
   const int32_t sensorQ1 = 695740479, sensorQ2 = -290263255, sensorQ3 = -268380970;
   const float aoa[3] = {0.0f, 1.0f, 0.0f};  // Source is directly in front of sensor
   const auto [qw, qx, qy, qz] = GeoMath::calculateFullQuaternion(sensorQ1, sensorQ2, sensorQ3);
-  const auto [azimuth, elevation] = GeoMath::calculateSourceDirection(qw, qx, qy, qz, aoa);
+  const auto [azimuth, elevation] = GeoMath::calculateSourceDirection(qw, qx, qy, qz, aoa[0], aoa[1], aoa[2]);
   printf("Calculated Source Direction: Azimuth = %.4f deg, Elevation = %.4f deg\n", azimuth * (180.0f / (float)M_PI), elevation * (180.0f / (float)M_PI));
   /*if (std::abs(azimuth - 0.0f) > 0.01f || std::abs(elevation - 1.5708f) > 0.01f)
     logger.log(Logger::ERROR, "Calculate Source Direction Test FAILED: Expected Azimuth = 0.00 rad, Elevation = 1.5708 rad, Got Azimuth = %.4f rad, Elevation = %.4f rad\n",
