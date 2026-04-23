@@ -4,7 +4,6 @@
 #include "FusionAlgorithm.h"
 #include "GeoMath.h"
 #include "MessageReceiver.h"
-#include "Transcoding.h"
 
 std::mutex MessageReceiver::bufferMutex;
 std::atomic_bool MessageReceiver::isRunning(false);
@@ -56,11 +55,8 @@ void MessageReceiver::messageReceptionWorker(void)
   // Loop forever until the program is terminated
   while (isRunning.load(std::memory_order_acquire))
   {
-    // Receive a message from the MQTT broker and decode its contents
-    auto [messageTopic, rawData] = AwsServices::mqttReceive();
-    const auto messageData = Transcoding::hexDecode(std::move(rawData));
-
-    // Validate the message size and type, and process accordingly
+    // Receive a message from the MQTT broker and validate its size and type
+    const auto [messageTopic, messageData] = AwsServices::mqttReceive();
     if (!messageTopic.compare(deviceInfoTopic) && (messageData.size() == sizeof(DeviceInfoMessage)))
       database->updateDeviceInfo(reinterpret_cast<const DeviceInfoMessage*>(messageData.data()));
     else if (!messageTopic.compare(alertsTopic) && (messageData.size() >= (sizeof(AlertMessage) - sizeof(AlertMessage::events))) &&
