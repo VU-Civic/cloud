@@ -122,8 +122,7 @@ void testMQTT(void)
   AwsSecrets secretManager;
   std::string evidenceTopic(secretManager.getParameter(CivicAlert::AWS_PARAMETER_KEY_MQTT_AUDIO_EVIDENCE_TOPIC));
   const auto mqttCredentials = secretManager.getSecret(secretManager.getParameter(CivicAlert::AWS_PARAMETER_KEY_MQTT_CREDENTIALS_KEY).c_str());
-  AwsMQTT mqtt(CivicAlert::MQTT_EVIDENCE_CLIENT_ID,
-               secretManager.extractSecretValue(mqttCredentials, secretManager.getParameter(CivicAlert::AWS_PARAMETER_KEY_MQTT_CA_KEY).c_str()),
+  AwsMQTT mqtt(CivicAlert::MQTT_CLOUD_CLIENT_ID, secretManager.extractSecretValue(mqttCredentials, secretManager.getParameter(CivicAlert::AWS_PARAMETER_KEY_MQTT_CA_KEY).c_str()),
                secretManager.extractSecretValue(mqttCredentials, secretManager.getParameter(CivicAlert::AWS_PARAMETER_KEY_MQTT_CLIENT_CERT_KEY).c_str()),
                secretManager.extractSecretValue(mqttCredentials, secretManager.getParameter(CivicAlert::AWS_PARAMETER_KEY_MQTT_CLIENT_KEY_KEY).c_str()),
                secretManager.getParameter(CivicAlert::AWS_PARAMETER_KEY_MQTT_ENDPOINT).c_str(),

@@ -188,14 +188,26 @@ void AwsMQTT::onAttemptingConnect(const Aws::Crt::Mqtt5::OnAttemptingConnectEven
 void AwsMQTT::onConnectionSuccess(const Aws::Crt::Mqtt5::OnConnectionSuccessEventData&)
 {
   logger.log(Logger::INFO, "AWS MQTT: Successfully connected to MQTT Broker!\n");
-  clientConnected.set_value(true);
+  try
+  {
+    clientConnected.set_value(true);
+  }
+  catch (const std::future_error& _e)
+  {
+  }
   isRunning = true;
 }
 
 void AwsMQTT::onConnectionFailure(const Aws::Crt::Mqtt5::OnConnectionFailureEventData& eventData)
 {
   logger.log(Logger::ERROR, "AWS MQTT: Connection to MQTT Broker failed with error: %s\n", aws_error_debug_str(eventData.errorCode));
-  clientConnected.set_value(false);
+  try
+  {
+    clientConnected.set_value(false);
+  }
+  catch (const std::future_error& _e)
+  {
+  }
 }
 
 void AwsMQTT::onDisconnection(const Aws::Crt::Mqtt5::OnDisconnectionEventData& eventData)
