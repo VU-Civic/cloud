@@ -41,11 +41,14 @@ void MessageReceiver::stopListening(void)
   isRunning.store(false, std::memory_order_release);
   AwsServices::mqttDisconnect();
   if (receiveThread.joinable()) receiveThread.join();
+  logger.log(Logger::INFO, "Message listening thread has completed\n");
 
   // Terminate all message processing threads
+  logger.log(Logger::INFO, "Stopping all data processing threads...\n");
   terminationCondition.notify_all();
   while (numProcessingThreads.load(std::memory_order_acquire) > 0) std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  logger.log(Logger::INFO, "Message listening thread has completed\n");
+  logger.log(Logger::INFO, "Data processing threads have completed\n");
+  database.reset();
 }
 
 void MessageReceiver::messageReceptionWorker(void)
