@@ -9,16 +9,8 @@
 static constexpr const char* const logLevelStrings[] = {"ERROR", "WARNING", "INFO", "DEBUG"};
 
 Logger::Logger(const char* __restrict logFilePath, LogLevel maxLogLevel)
-    : inUse(false),
-      logPath(logFilePath),
-      maxLogLevel(maxLogLevel),
-      timeString{0},
-      logFile(fopen(logFilePath, "a")),
-      rotationThread(),
-      rotationRunning(false),
-      terminateRotation(),
-      rotationPath(),
-      rotationInterval(0)
+    : inUse(false), logPath(logFilePath), maxLogLevel(maxLogLevel), timeString{0}, logFile(fopen(logFilePath, "a")), rotationThread(), rotationRunning(false), terminateRotation(),
+      rotationPath(), rotationInterval(0)
 {
   // Log an application start message
   log(INFO, "Application starting...\n");
@@ -82,7 +74,7 @@ void Logger::disableRotation(void)
   inUse.clear();
 }
 
-void Logger::rotate(const char* __restrict newPath)
+void Logger::rotate(const char* newPath)
 {
   // Rotate the log file to a new file path
   while (inUse.test_and_set());

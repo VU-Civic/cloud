@@ -36,7 +36,7 @@ public:
 private:
 
   // Log rotation functions
-  void rotate(const char* __restrict newPath);
+  void rotate(const char* newPath);
   void logRotationWorker(void);
 
   // Private logging variables

@@ -146,7 +146,7 @@ std::tuple<float, float> GeoMath::calculateSourceDirection(float qw, float qx, f
 
   // TODO: FINALIZE THESE COMPUTATIONS
   // TEST: Compute roll (x-axis rotation)
-  const auto t0 = qw * qx + qy * qz;
+  /*const auto t0 = qw * qx + qy * qz;
   const auto t1 = 0.5f - (qx * qx + qy * qy);
   const auto roll = atan2f(t0, t1) * 180.0f / (float)M_PI;
   // TEST: Compute pitch (y-axis rotation)
@@ -155,7 +155,7 @@ std::tuple<float, float> GeoMath::calculateSourceDirection(float qw, float qx, f
   // TEST: Compute yaw (z-axis rotation)
   const auto t3 = qw * qz + qx * qy;
   const auto t4 = 0.5f - (qy * qy + qz * qz);
-  const auto yaw = atan2f(t3, t4) * 180.0f / (float)M_PI;
+  const auto yaw = atan2f(t3, t4) * 180.0f / (float)M_PI;*/
   // printf("Calculated Sensor Orientation: Roll = %.4f deg, Pitch = %.4f deg, Yaw = %.4f deg\n", -(90.0f + roll), pitch, fmodf(yaw - 90.0f, 360.0f));
 
   // Rotate the azimuth from the ENU world frame to the NED world frame
