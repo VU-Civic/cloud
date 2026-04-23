@@ -17,7 +17,7 @@ ifeq ($(shell uname -s),Darwin)
   S2NFLAG = 
 	GCFLAG = 
 else
-  S2NFLAG = -ls2n # DO WE NEED THIS ON AMAZON LINUX?
+  S2NFLAG = -ls2n
   GCFLAG = -Wl,--gc-sections
 endif
 
@@ -26,7 +26,7 @@ MKDIR := @mkdir -p
 RM := @rm -rf
 
 CXXFLAGS := -O3 -march=native -std=c++17 -flto -ffunction-sections -fdata-sections -Wall -Wextra -I../common -I../common/aws -I../common/general -I../common/weather -I/usr/include -I/usr/local/include -I/usr/include/postgresql -I/opt/homebrew/opt/libpq/include -I/opt/homebrew/include
-LDFLAGS := -Wl,-rpath,/usr/local/lib $(GCFLAG) -L/usr/local/lib -L/usr/lib -L/opt/homebrew/lib -L/opt/homebrew/opt/libpq/lib -laws-cpp-sdk-iot -laws-cpp-sdk-ssm -laws-cpp-sdk-secretsmanager -laws-cpp-sdk-core -laws-crt-cpp -laws-c-sdkutils -laws-c-mqtt -laws-c-http -laws-c-compression -laws-c-event-stream -laws-c-auth -laws-checksums -laws-c-common -laws-c-io -laws-c-cal -lpq -lcurl -lcrypto -lz -lpthread
+LDFLAGS := -Wl,-rpath,/usr/local/lib $(GCFLAG) -L/usr/local/lib -L/usr/lib -L/opt/homebrew/lib -L/opt/homebrew/opt/libpq/lib -laws-cpp-sdk-iot -laws-cpp-sdk-ssm -laws-cpp-sdk-secretsmanager -laws-cpp-sdk-core -laws-crt-cpp -laws-c-sdkutils -laws-c-s3 -laws-c-mqtt -laws-c-http -laws-c-compression -laws-c-event-stream -laws-c-auth -laws-checksums -laws-c-common -laws-c-io -laws-c-cal $(S2NFLAG) -lpq -lcurl -lcrypto -lz -lpthread
 
 
 #### Build Targets ####
