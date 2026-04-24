@@ -57,15 +57,20 @@ void test_yenc_encoding(const uint8_t* data, uint32_t length)
 void decode_device_info_message(const std::string& encodedData)
 {
   // Decode the hex-encoded device info message and log its contents
+  char firmwareVersion[FIRMWARE_VERSION_LENGTH + 1], aiFirmwareVersion[FIRMWARE_VERSION_LENGTH + 1];
+  memset(firmwareVersion, 0, sizeof(firmwareVersion));
+  memset(aiFirmwareVersion, 0, sizeof(aiFirmwareVersion));
   logger.log(Logger::INFO, "Original hex string (length = %zu): %s\n", encodedData.length(), encodedData.c_str());
   std::vector<uint8_t> data(encodedData.begin(), encodedData.end());
   std::vector<uint8_t> decodedData = Transcoding::hexDecode(std::move(data));
   logger.log(Logger::INFO, "Decoded Device Info Message (length = %zu):\n", decodedData.size());
   DeviceInfoMessage* decodedInfo = reinterpret_cast<DeviceInfoMessage*>(decodedData.data());
+  memcpy(firmwareVersion, decodedInfo->firmwareVersion, FIRMWARE_VERSION_LENGTH);
+  memcpy(aiFirmwareVersion, decodedInfo->aiFirmwareVersion, FIRMWARE_VERSION_LENGTH);
   logger.log(Logger::INFO, "  deviceID: %llu\n", decodedInfo->deviceID);
   logger.log(Logger::INFO, "  imsi: %s\n", decodedInfo->imsi);
-  logger.log(Logger::INFO, "  firmwareVersion: %s\n", decodedInfo->firmwareVersion);
-  logger.log(Logger::INFO, "  aiFirmwareVersion: %s\n", decodedInfo->aiFirmwareVersion);
+  logger.log(Logger::INFO, "  firmwareVersion: %s\n", firmwareVersion);
+  logger.log(Logger::INFO, "  aiFirmwareVersion: %s\n", aiFirmwareVersion);
   logger.log(Logger::INFO, "  lat: %f\n", decodedInfo->lat);
   logger.log(Logger::INFO, "  lon: %f\n", decodedInfo->lon);
   logger.log(Logger::INFO, "  ht: %f\n", decodedInfo->ht);
@@ -79,9 +84,9 @@ void decode_device_info_message(const std::string& encodedData)
   logger.log(Logger::INFO, "  deviceConfig.mqttDeviceInfoQos: %u\n", decodedInfo->deviceConfig.mqttDeviceInfoQos);
   logger.log(Logger::INFO, "  deviceConfig.mqttAlertQos: %u\n", decodedInfo->deviceConfig.mqttAlertQos);
   logger.log(Logger::INFO, "  deviceConfig.mqttAudioQos: %u\n", decodedInfo->deviceConfig.mqttAudioQos);
-  logger.log(Logger::INFO, "  deviceConfig.shotDetectionMinThreshold: %u\n", decodedInfo->deviceConfig.shotDetectionMinThreshold);
-  logger.log(Logger::INFO, "  deviceConfig.shotDetectionGoodThreshold: %u\n", decodedInfo->deviceConfig.shotDetectionGoodThreshold);
-  logger.log(Logger::INFO, "  deviceConfig.storageClassificationThreshold: %u\n", decodedInfo->deviceConfig.storageClassificationThreshold);
+  logger.log(Logger::INFO, "  deviceConfig.shotDetectionMinThreshold: %f\n", decodedInfo->deviceConfig.shotDetectionMinThreshold);
+  logger.log(Logger::INFO, "  deviceConfig.shotDetectionGoodThreshold: %f\n", decodedInfo->deviceConfig.shotDetectionGoodThreshold);
+  logger.log(Logger::INFO, "  deviceConfig.storageClassificationThreshold: %f\n", decodedInfo->deviceConfig.storageClassificationThreshold);
   logger.log(Logger::INFO, "  deviceConfig.audioClipLengthSeconds: %u\n", decodedInfo->deviceConfig.audioClipLengthSeconds);
   logger.log(Logger::INFO, "  deviceConfig.deviceStatusTransmissionIntervalMinutes: %u\n", decodedInfo->deviceConfig.deviceStatusTransmissionIntervalMinutes);
   logger.log(Logger::INFO, "  deviceConfig.badAudioRestartAttempted: %u\n", decodedInfo->deviceConfig.badAudioRestartAttempted);
@@ -127,9 +132,9 @@ int main(void)
                                                          .mqttDeviceInfoQos = 1,
                                                          .mqttAlertQos = 2,
                                                          .mqttAudioQos = 0,
-                                                         .shotDetectionMinThreshold = 10,
-                                                         .shotDetectionGoodThreshold = 20,
-                                                         .storageClassificationThreshold = 15,
+                                                         .shotDetectionMinThreshold = 0.1f,
+                                                         .shotDetectionGoodThreshold = 0.2f,
+                                                         .storageClassificationThreshold = -0.01f,
                                                          .audioClipLengthSeconds = 5,
                                                          .deviceStatusTransmissionIntervalMinutes = 60,
                                                          .badAudioRestartAttempted = 0,
@@ -138,8 +143,8 @@ int main(void)
 
   // Test decoding a hex-encoded device info message``
   std::string encodedDeviceInfoMessage(
-      "647BF464BE4101003233343530323131303539313536320061626364656631320000000000000000669410426F96ADC2AAE1804328789DFEF67175FDB4F42D01FFFF000055000100323C003C050000FFFFFFFFFFFFFF"
-      "FFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+      "647BF464BE4101003233343530323131303539313536320030613065636531383765633939373733629410423696ADC22BC7154335226AFEFDA38EFEE4F47B00FFFF000051000100000000000000803F0000C8C23C0F"
+      "0000FFFFFFFFFFFFFFFFFFFFFFFF");
   decode_device_info_message(encodedDeviceInfoMessage);
   return 0;
 }

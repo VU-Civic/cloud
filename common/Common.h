@@ -38,11 +38,10 @@ typedef struct __attribute__((__packed__))
 {
   uint8_t initializedTag;
   uint8_t mqttDeviceInfoQos, mqttAlertQos, mqttAudioQos;
-  uint8_t shotDetectionMinThreshold, shotDetectionGoodThreshold;
-  uint8_t storageClassificationThreshold, audioClipLengthSeconds;
-  uint8_t deviceStatusTransmissionIntervalMinutes;
+  float shotDetectionMinThreshold, shotDetectionGoodThreshold, storageClassificationThreshold;
+  uint8_t audioClipLengthSeconds, deviceStatusTransmissionIntervalMinutes;
   uint8_t badAudioRestartAttempted, badAiRestartAttempted;
-  uint8_t reserved[21];
+  uint8_t reserved[12];
 } ConfigData;
 
 // Channel alarm bitfield union for MQTT messages
@@ -67,7 +66,8 @@ typedef struct __attribute__((__packed__))
 {
   uint64_t deviceID;
   char imsi[CELL_IMSI_LENGTH + 1];
-  char firmwareVersion[FIRMWARE_VERSION_LENGTH], aiFirmwareVersion[FIRMWARE_VERSION_LENGTH];
+  uint8_t firmwareVersion[FIRMWARE_VERSION_LENGTH];
+  uint8_t aiFirmwareVersion[FIRMWARE_VERSION_LENGTH];
   float lat, lon, ht;
   int32_t q1, q2, q3;
   uint8_t signalPower, signalQuality, reserved;
