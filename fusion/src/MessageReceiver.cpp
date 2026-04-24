@@ -35,10 +35,12 @@ void MessageReceiver::stopListening(void)
   // Only stop if the receiver is currently running
   if (!isRunning.load(std::memory_order_acquire)) return;
 
-  // Stop the reception thread and disconnect from the MQTT broker
-  logger.log(Logger::INFO, "Stopping the message listening thread..\n");
+  // Disconnect from the MQTT broker
   isRunning.store(false, std::memory_order_release);
   AwsServices::mqttDisconnect();
+
+  // Stop the reception thread and wait for it to complete
+  logger.log(Logger::INFO, "Stopping the message listening thread..\n");
   if (receiveThread.joinable()) receiveThread.join();
   logger.log(Logger::INFO, "Message listening thread has completed\n");
 
