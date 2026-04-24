@@ -86,8 +86,8 @@ void StorageDatabase::updateDeviceInfo(const DeviceInfoMessage* __restrict packe
       "::bool, " + std::to_string(packet->channelAlarms.alarm.ch2 != 0) + "::bool, " + std::to_string(packet->channelAlarms.alarm.ch3 != 0) + "::bool, " +
       std::to_string(packet->channelAlarms.alarm.ch4 != 0) + "::bool, " + std::to_string(packet->deviceConfig.mqttDeviceInfoQos) + "::int2, " +
       std::to_string(packet->deviceConfig.mqttAlertQos) + "::int2, " + std::to_string(packet->deviceConfig.mqttAudioQos) + "::int2, " +
-      std::to_string(packet->deviceConfig.shotDetectionMinThreshold) + "::int2, " + std::to_string(packet->deviceConfig.shotDetectionGoodThreshold) + "::int2, " +
-      std::to_string(packet->deviceConfig.storageClassificationThreshold) + "::int2, " + std::to_string(packet->deviceConfig.audioClipLengthSeconds) + "::int2, " +
+      std::to_string(packet->deviceConfig.shotDetectionMinThreshold) + "::float4, " + std::to_string(packet->deviceConfig.shotDetectionGoodThreshold) + "::float4, " +
+      std::to_string(packet->deviceConfig.storageClassificationThreshold) + "::float4, " + std::to_string(packet->deviceConfig.audioClipLengthSeconds) + "::int2, " +
       std::to_string(packet->deviceConfig.deviceStatusTransmissionIntervalMinutes) + "::int2, " + std::to_string(packet->deviceConfig.badAudioRestartAttempted != 0) + "::bool, " +
       std::to_string(packet->deviceConfig.badAiRestartAttempted != 0) + "::bool);";
   while (!civicAlertDatabase->executeQuery(updateQuery.c_str()) && !civicAlertDatabase->isConnected())
