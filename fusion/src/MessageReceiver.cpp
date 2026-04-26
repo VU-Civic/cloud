@@ -131,16 +131,16 @@ void MessageReceiver::packetProcessingWorker(uint64_t reportID)
   // Lock the processing buffer for this thread and log the start of processing for this report ID
   logger.log(Logger::INFO, "Started processing thread for report ID #%llu\n", reportID);
   std::unique_lock<std::mutex> lock(bufferMutex);
-  auto& processingQueue = processingBuffer.at(reportID);
+  auto* processingQueue = &processingBuffer.at(reportID);
   std::vector<std::shared_ptr<GunshotReport>> unusedReports;
   std::shared_ptr<GunshotReport> newValidationReport;
 
   // Loop until the processing queue for this thread is empty
-  while (isRunning.load(std::memory_order_acquire) && !processingQueue.empty())
+  while (isRunning.load(std::memory_order_acquire) && !processingQueue->empty())
   {
     // Sleep until time to process the current message packet
     {
-      const auto& messageBundle = processingQueue.front().reports;
+      const auto& messageBundle = processingQueue->front().reports;
       const auto receptionTime = messageBundle.front()->receptionTime;
       auto packetAgeMS = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - receptionTime).count();
       while (isRunning.load(std::memory_order_acquire) && (packetAgeMS < CivicAlert::ALERT_MIN_PROCESSING_TIMEOUT_MS))
@@ -159,8 +159,8 @@ void MessageReceiver::packetProcessingWorker(uint64_t reportID)
     }
 
     // Take the first message bundle, remove it from the queue, and unlock the buffer mutex while processing
-    auto messageBundle = std::move(processingQueue.front());
-    processingQueue.pop_front();
+    auto messageBundle = std::move(processingQueue->front());
+    processingQueue->pop_front();
     lock.unlock();
 
     // Lock all report "in-use" flags to prevent concurrent use and remove any reports that have already been used
@@ -231,9 +231,10 @@ void MessageReceiver::packetProcessingWorker(uint64_t reportID)
     // Unlock all report "in-use" flags for the next processing iteration and re-lock the buffer mutex
     for (const auto& report : messageBundle.reports) report->reportInUse.clear(std::memory_order_release);
     lock.lock();
+    processingQueue = &processingBuffer.at(reportID);
 
     // Create a new message bundle for any unused reports that relate to the validation report and add it to the front of the processing queue
-    if (newValidationReport) processingQueue.emplace_front(ReportPacket{.validationReport = newValidationReport, .reports = std::move(unusedReports)});
+    if (newValidationReport) processingQueue->emplace_front(ReportPacket{.validationReport = newValidationReport, .reports = std::move(unusedReports)});
   }
 
   // Erase the processing queue for this thread and log completion

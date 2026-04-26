@@ -40,7 +40,7 @@ private:
   std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> mqttClient;
   std::promise<bool> clientConnected, clientStopped;
   std::condition_variable packetReceived;
-  std::atomic<bool> isRunning;
+  std::atomic_bool isRunning;
   std::mutex receiveMutex;
 };
 #endif  // #ifndef __AWS_MQTT_HEADER_H__

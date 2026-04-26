@@ -7,6 +7,11 @@ StorageDatabase::StorageDatabase(void) : curl(nullptr), apiEndpointUrl(), apiEnd
 {
   // Initialize the cURL library and set default options for all future cURL requests
   curl = curl_easy_init();
+  if (!curl)
+  {
+    logger.log(Logger::ERROR, "Failed to initialize cURL...restarting process!\n");
+    exit(EXIT_FAILURE);
+  }
   curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
   curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
   curl_easy_setopt(curl, CURLOPT_USERAGENT, "CivicAlertFusion/1.0");
@@ -148,11 +153,12 @@ void StorageDatabase::addIncidentReport(const IncidentMessage* __restrict messag
 
   // Call the API endpoint to store an incident report and trigger associated workflows
   std::string output;
+  std::string apiUrl = apiEndpointUrl + CivicAlert::API_FUSED_EVENT_ENDPOINT;
   auto headers = curl_slist_append(nullptr, "Content-Type: application/json");
   headers = curl_slist_append(headers, (std::string("Authorization: Token ") + apiEndpointToken).c_str());
   curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 1);
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &StorageDatabase::writeCurlDataString);
-  curl_easy_setopt(curl, CURLOPT_URL, (apiEndpointUrl + CivicAlert::API_FUSED_EVENT_ENDPOINT).c_str());
+  curl_easy_setopt(curl, CURLOPT_URL, apiUrl.c_str());
   curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
   curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body.c_str());
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &output);
@@ -164,9 +170,10 @@ void StorageDatabase::addIncidentReport(const IncidentMessage* __restrict messag
     const auto apiEndpointTokenKey = AwsServices::getSecretParameter(CivicAlert::AWS_PARAMETER_KEY_API_ENDPOINT_TOKEN_KEY);
     const auto apiEndpointTokenSecret = AwsServices::getSecret(apiEndpointTokenKey.c_str());
     apiEndpointToken = AwsServices::extractSecretValue(apiEndpointTokenSecret, "token");
+    apiUrl = apiEndpointUrl + CivicAlert::API_FUSED_EVENT_ENDPOINT;
     headers = curl_slist_append(nullptr, "Content-Type: application/json");
     headers = curl_slist_append(headers, (std::string("Authorization: Token ") + apiEndpointToken).c_str());
-    curl_easy_setopt(curl, CURLOPT_URL, (apiEndpointUrl + CivicAlert::API_FUSED_EVENT_ENDPOINT).c_str());
+    curl_easy_setopt(curl, CURLOPT_URL, apiUrl.c_str());
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     if (curl_easy_perform(curl) != CURLE_OK)
       logger.log(Logger::ERROR, "Failed to send fused event data to API endpoint for incident at (%.6f, %.6f)\n", message->lat, message->lon);

@@ -100,8 +100,8 @@ typedef struct GunshotReport
   GunshotReport(std::chrono::steady_clock::time_point receptionTime, uint64_t deviceID, double timestamp, float lat, float lon, float ht, float x, float y, float z,
                 float sourceAzimuth, float sourceElevation, float confidence, float orientationQW, float orientationQX, float orientationQY, float orientationQZ,
                 uint8_t audioLocatorID)
-      : receptionTime(receptionTime), reportInUse(false), deviceID(deviceID), reportID(0), timestamp(timestamp), lat(lat), lon(lon), ht(ht), x(x), y(y), z(z),
-        sourceAzimuth(sourceAzimuth), sourceElevation(sourceElevation), confidence(confidence), orientationQW(orientationQW), orientationQX(orientationQX),
+      : receptionTime(receptionTime), reportInUse(false), deviceID(deviceID), reportID(0), timestamp(timestamp), lat(lat), lon(lon), ht(ht), x(x), y(y), z(z), east(0.0f),
+        north(0.0f), up(0.0f), sourceAzimuth(sourceAzimuth), sourceElevation(sourceElevation), confidence(confidence), orientationQW(orientationQW), orientationQX(orientationQX),
         orientationQY(orientationQY), orientationQZ(orientationQZ), audioLocatorID(audioLocatorID), usedInFusion(false)
   {
   }
@@ -113,7 +113,7 @@ typedef struct GunshotReport
   float sourceAzimuth, sourceElevation, confidence;
   float orientationQW, orientationQX, orientationQY, orientationQZ;
   uint8_t audioLocatorID;
-  bool usedInFusion;
+  std::atomic_bool usedInFusion;
 } GunshotReport;
 
 // Packet structure for reports that are pending fusion

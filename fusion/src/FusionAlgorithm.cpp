@@ -26,7 +26,7 @@ void Fusion::cleanup(void)
 
 bool Fusion::validateFeasibility(const GunshotReport* validationPacket, const GunshotReport* packet)
 {
-  return ((packet->timestamp - validationPacket->timestamp) <=
+  return (std::abs(packet->timestamp - validationPacket->timestamp) <=
           CivicAlert::FUSION_MAX_POSSIBLE_TIME_DIFFERENCE_SECONDS) &&  // TODO: TIME DIFFERENCE DOESN'T MAKE AS MUCH SENSE IF WE ARE ALLOWING MULTIPLE SHOTS IN SAME BUNDLE
          (GeoMath::calculateDistance3D(validationPacket->lat, validationPacket->lon, validationPacket->ht, packet->lat, packet->lon, packet->ht) <
           CivicAlert::FUSION_MAX_POSSIBLE_DISTANCE_METERS);  // TODO: 2.0*MAX_DISTANCE TO MAKE DISTANCE A WORST-CASE RADIUS FROM SHOOTER, NOT FROM SENSOR
