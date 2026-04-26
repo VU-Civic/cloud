@@ -47,7 +47,7 @@ void PacketReceiver::packetReceptionThread(void)
   while (isRunning.load(std::memory_order_acquire))
   {
     // Receive packets from the MQTT broker, decode them, and validate their size
-    const auto decodedData = Transcoding::base64Decode(AwsServices::mqttReceive());
+    const auto decodedData = Transcoding::base85Decode(AwsServices::mqttReceive());
     if ((decodedData.size() >= offsetof(EvidenceMessage, data)) && (decodedData.size() <= sizeof(EvidenceMessage)))
       processPacket(reinterpret_cast<const EvidenceMessage*>(decodedData.data()), static_cast<uint32_t>(decodedData.size()));
     else if (isRunning.load(std::memory_order_acquire))

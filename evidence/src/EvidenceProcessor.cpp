@@ -1,6 +1,5 @@
 #include <ctime>
 #include <filesystem>
-#include <thread>
 #include <opus/opus.h>
 #include "Common.h"
 #include "AwsServices.h"
@@ -15,8 +14,11 @@ extern "C"
 }
 
 int EvidenceProcessor::referenceCount = 0;
-std::atomic_uint32_t EvidenceProcessor::numActiveThreads{0};
-std::mutex EvidenceProcessor::initializationMutex, EvidenceProcessor::dbMutex;
+std::atomic_bool EvidenceProcessor::workersShouldStop{false};
+std::mutex EvidenceProcessor::initializationMutex, EvidenceProcessor::dbMutex, EvidenceProcessor::workQueueMutex;
+std::condition_variable EvidenceProcessor::workQueueCV;
+std::vector<std::thread> EvidenceProcessor::workerThreads;
+std::queue<EvidenceProcessor::WorkItem> EvidenceProcessor::workQueue;
 std::unique_ptr<PostgreSQL> EvidenceProcessor::evidenceDatabase;
 
 void EvidenceProcessor::connectToEvidenceDatabase(void)
@@ -52,29 +54,46 @@ void EvidenceProcessor::initialize(void)
 
   // Establish a connection to the evidence database
   connectToEvidenceDatabase();
+
+  // Start the worker thread pool
+  workersShouldStop.store(false);
+  workerThreads.reserve(NUM_WORKER_THREADS);
+  for (int i = 0; i < NUM_WORKER_THREADS; ++i) workerThreads.emplace_back(&EvidenceProcessor::workerThread);
 }
 
 void EvidenceProcessor::cleanup(void)
 {
   // Only allow one complete cleanup
-  std::lock_guard<std::mutex> lock(initializationMutex);
-  if (--referenceCount > 0) return;
-  if (referenceCount < 0)
   {
-    // Disallow unmatched uninitializations
-    referenceCount = 0;
-    return;
+    std::lock_guard<std::mutex> lock(initializationMutex);
+    if (--referenceCount > 0) return;
+    if (referenceCount < 0)
+    {
+      // Disallow unmatched uninitializations
+      referenceCount = 0;
+      return;
+    }
   }
 
-  // Wait until all active threads have finished processing
+  // Signal workers to stop and wait for them to finish processing any active clips
   logger.log(Logger::INFO, "Waiting for all active evidence processing threads to finish...\n");
-  while (numActiveThreads.load() > 0) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  {
+    std::lock_guard<std::mutex> lock(workQueueMutex);
+    workersShouldStop.store(true);
+  }
+  workQueueCV.notify_all();
+  for (auto& t : workerThreads)
+    if (t.joinable()) t.join();
+  workerThreads.clear();
 
   // Clean up the database connection
-  if (evidenceDatabase)
   {
-    evidenceDatabase->disconnect();
-    evidenceDatabase.reset();
+    std::lock_guard<std::mutex> dbLock(dbMutex);
+    if (evidenceDatabase)
+    {
+      evidenceDatabase->disconnect();
+      evidenceDatabase.reset();
+    }
   }
 
   // Ensure that all temporary evidence files have been deleted
@@ -97,66 +116,38 @@ void EvidenceProcessor::processEvidenceData(uint64_t deviceID, uint8_t clipID, s
   flattenedEvidence.reserve(evidenceDataLength);
   for (const auto& chunk : evidenceData) flattenedEvidence.insert(flattenedEvidence.end(), chunk.begin(), chunk.end());
 
-  // Start a new detached thread to process the evidence data
-  numActiveThreads.fetch_add(1);
-  std::thread worker(&EvidenceProcessor::processEvidenceWorker, deviceID, clipID, std::move(flattenedEvidence));
-  worker.detach();
+  // Enqueue the work item for a worker thread to process
+  {
+    std::lock_guard<std::mutex> lock(workQueueMutex);
+    workQueue.push({deviceID, clipID, std::move(flattenedEvidence)});
+  }
+  workQueueCV.notify_one();
 }
 
-void EvidenceProcessor::processEvidenceWorker(uint64_t deviceID, uint8_t clipID, std::vector<uint8_t>&& rawEvidence)
+void EvidenceProcessor::workerThread(void)
 {
-  // Open a memory stream for reading the raw evidence data
-  EvidenceOpusFrame evidenceFrame;
-  int16_t decodedPacket[CivicAlert::EVIDENCE_DECODED_FRAME_SAMPLES];
-  auto* evidenceData = fmemopen(rawEvidence.data(), rawEvidence.size(), "rb");
-  if (!evidenceData)
-  {
-    logger.log(Logger::ERROR, "Failed to open evidence data stream for Device #%llu, Clip #%u\n", deviceID, clipID);
-    numActiveThreads.fetch_sub(1);
-    return;
-  }
-
-  // Create an Opus decoder for parsing the raw evidence data
+  // Initialize an Opus decoder
   int error = 0;
   OpusDecoder* opusDecoder = opus_decoder_create(CivicAlert::EVIDENCE_AUDIO_SAMPLE_RATE_HZ, CivicAlert::EVIDENCE_AUDIO_NUM_CHANNELS, &error);
-  if (error != OPUS_OK)
+  if (!opusDecoder || error != OPUS_OK)
   {
-    logger.log(Logger::ERROR, "Failed to create an Opus stream decoder: %s\n", opus_strerror(error));
-    numActiveThreads.fetch_sub(1);
-    fclose(evidenceData);
+    logger.log(Logger::ERROR, "Worker thread failed to create Opus decoder: %s\n", opus_strerror(error));
     return;
   }
 
-  // Create an M4A (AAC in MP4 container) encoder for writing the full evidence clip
-  AVFormatContext* formatCtx = nullptr;
-  const auto fileName = std::to_string(deviceID) + "_" + std::to_string(time(nullptr)) + CivicAlert::EVIDENCE_CLIP_FILE_EXTENSION;
-  const auto localFileName = "/tmp/" + fileName;
-  if (avformat_alloc_output_context2(&formatCtx, nullptr, "mp4", localFileName.c_str()) < 0 || !formatCtx)
-  {
-    logger.log(Logger::ERROR, "Failed to allocate M4A output context for Device #%llu, Clip #%u\n", deviceID, clipID);
-    opus_decoder_destroy(opusDecoder);
-    numActiveThreads.fetch_sub(1);
-    fclose(evidenceData);
-    return;
-  }
-  const AVCodec* aacCodec = avcodec_find_encoder(AV_CODEC_ID_AAC);
+  // Initialize an AAC codec context
+  static const AVCodec* aacCodec = avcodec_find_encoder(AV_CODEC_ID_AAC);
   if (!aacCodec)
   {
-    logger.log(Logger::ERROR, "AAC encoder not found\n");
-    avformat_free_context(formatCtx);
+    logger.log(Logger::ERROR, "Worker thread: AAC encoder not found\n");
     opus_decoder_destroy(opusDecoder);
-    numActiveThreads.fetch_sub(1);
-    fclose(evidenceData);
     return;
   }
   AVCodecContext* codecCtx = avcodec_alloc_context3(aacCodec);
   if (!codecCtx)
   {
-    logger.log(Logger::ERROR, "Failed to allocate AAC codec context\n");
-    avformat_free_context(formatCtx);
+    logger.log(Logger::ERROR, "Worker thread failed to allocate AAC codec context\n");
     opus_decoder_destroy(opusDecoder);
-    numActiveThreads.fetch_sub(1);
-    fclose(evidenceData);
     return;
   }
   codecCtx->sample_rate = CivicAlert::EVIDENCE_AUDIO_SAMPLE_RATE_HZ;
@@ -165,22 +156,95 @@ void EvidenceProcessor::processEvidenceWorker(uint64_t deviceID, uint8_t clipID,
   codecCtx->ch_layout = AV_CHANNEL_LAYOUT_MONO;
   if (avcodec_open2(codecCtx, aacCodec, nullptr) < 0)
   {
-    logger.log(Logger::ERROR, "Failed to open AAC encoder\n");
+    logger.log(Logger::ERROR, "Worker thread failed to open AAC encoder\n");
     avcodec_free_context(&codecCtx);
-    avformat_free_context(formatCtx);
     opus_decoder_destroy(opusDecoder);
-    numActiveThreads.fetch_sub(1);
+    return;
+  }
+
+  // Pre-allocate an AVFrame and AVPacket once
+  AVFrame* aacFrame = av_frame_alloc();
+  AVPacket* aacPacket = av_packet_alloc();
+  if (!aacFrame || !aacPacket)
+  {
+    logger.log(Logger::ERROR, "Worker thread failed to allocate AAC frame or packet\n");
+    if (aacFrame) av_frame_free(&aacFrame);
+    if (aacPacket) av_packet_free(&aacPacket);
+    avcodec_free_context(&codecCtx);
+    opus_decoder_destroy(opusDecoder);
+    return;
+  }
+  aacFrame->nb_samples = codecCtx->frame_size;
+  aacFrame->format = codecCtx->sample_fmt;
+  av_channel_layout_copy(&aacFrame->ch_layout, &codecCtx->ch_layout);
+  if (av_frame_get_buffer(aacFrame, 0) < 0)
+  {
+    logger.log(Logger::ERROR, "Worker thread failed to allocate AAC frame buffer\n");
+    av_frame_free(&aacFrame);
+    av_packet_free(&aacPacket);
+    avcodec_free_context(&codecCtx);
+    opus_decoder_destroy(opusDecoder);
+    return;
+  }
+
+  // Create a PCM conversion buffer
+  std::vector<float> pcmBuffer;
+  pcmBuffer.reserve(codecCtx->frame_size * 4);
+
+  // Process clips from the work queue until shutdown
+  while (true)
+  {
+    WorkItem item;
+    {
+      std::unique_lock<std::mutex> lock(workQueueMutex);
+      workQueueCV.wait(lock, [] { return !workQueue.empty() || workersShouldStop.load(); });
+      if (workQueue.empty()) break;
+      item = std::move(workQueue.front());
+      workQueue.pop();
+    }
+    processClip(item.deviceID, item.clipID, item.rawEvidence, opusDecoder, codecCtx, aacFrame, aacPacket, pcmBuffer);
+
+    // Reset the codec state for the next clip
+    avcodec_flush_buffers(codecCtx);
+    opus_decoder_ctl(opusDecoder, OPUS_RESET_STATE);
+    pcmBuffer.clear();
+  }
+
+  // Release per-thread resources on exit
+  av_frame_free(&aacFrame);
+  av_packet_free(&aacPacket);
+  avcodec_free_context(&codecCtx);
+  opus_decoder_destroy(opusDecoder);
+}
+
+void EvidenceProcessor::processClip(uint64_t deviceID, uint8_t clipID, const std::vector<uint8_t>& rawEvidence, OpusDecoder* opusDecoder, AVCodecContext* codecCtx,
+                                    AVFrame* aacFrame, AVPacket* aacPacket, std::vector<float>& pcmBuffer)
+{
+  // Open a memory stream for reading the raw evidence data
+  EvidenceOpusFrame evidenceFrame;
+  int16_t decodedPacket[CivicAlert::EVIDENCE_DECODED_FRAME_SAMPLES];
+  auto* evidenceData = fmemopen(const_cast<uint8_t*>(rawEvidence.data()), rawEvidence.size(), "rb");
+  if (!evidenceData)
+  {
+    logger.log(Logger::ERROR, "Failed to open evidence data stream for Device #%llu, Clip #%u\n", deviceID, clipID);
+    return;
+  }
+
+  // Create an M4A (AAC in MP4 container) output file for this clip
+  AVFormatContext* formatCtx = nullptr;
+  const auto fileName = std::to_string(deviceID) + "_" + std::to_string(time(nullptr)) + CivicAlert::EVIDENCE_CLIP_FILE_EXTENSION;
+  const auto localFileName = "/tmp/" + fileName;
+  if (avformat_alloc_output_context2(&formatCtx, nullptr, "mp4", localFileName.c_str()) < 0 || !formatCtx)
+  {
+    logger.log(Logger::ERROR, "Failed to allocate M4A output context for Device #%llu, Clip #%u\n", deviceID, clipID);
     fclose(evidenceData);
     return;
   }
   AVStream* stream = avformat_new_stream(formatCtx, nullptr);
   if (!stream)
   {
-    logger.log(Logger::ERROR, "Failed to create audio stream\n");
-    avcodec_free_context(&codecCtx);
+    logger.log(Logger::ERROR, "Failed to create audio stream for Device #%llu, Clip #%u\n", deviceID, clipID);
     avformat_free_context(formatCtx);
-    opus_decoder_destroy(opusDecoder);
-    numActiveThreads.fetch_sub(1);
     fclose(evidenceData);
     return;
   }
@@ -190,58 +254,19 @@ void EvidenceProcessor::processEvidenceWorker(uint64_t deviceID, uint8_t clipID,
   {
     logger.log(Logger::ERROR, "Failed to open output file or write M4A header for Device #%llu\n", deviceID);
     avio_closep(&formatCtx->pb);
-    avcodec_free_context(&codecCtx);
     avformat_free_context(formatCtx);
-    opus_decoder_destroy(opusDecoder);
-    numActiveThreads.fetch_sub(1);
     fclose(evidenceData);
     return;
   }
-  AVFrame* aacFrame = av_frame_alloc();
-  AVPacket* aacPacket = av_packet_alloc();
-  if (!aacFrame || !aacPacket)
-  {
-    logger.log(Logger::ERROR, "Failed to allocate AAC frame or packet\n");
-    if (aacFrame) av_frame_free(&aacFrame);
-    if (aacPacket) av_packet_free(&aacPacket);
-    avio_closep(&formatCtx->pb);
-    avcodec_free_context(&codecCtx);
-    avformat_free_context(formatCtx);
-    opus_decoder_destroy(opusDecoder);
-    numActiveThreads.fetch_sub(1);
-    fclose(evidenceData);
-    return;
-  }
-  aacFrame->nb_samples = codecCtx->frame_size;
-  aacFrame->format = codecCtx->sample_fmt;
-  av_channel_layout_copy(&aacFrame->ch_layout, &codecCtx->ch_layout);
-  if (av_frame_get_buffer(aacFrame, 0) < 0)
-  {
-    logger.log(Logger::ERROR, "Failed to allocate AAC frame buffer\n");
-    av_frame_free(&aacFrame);
-    av_packet_free(&aacPacket);
-    avio_closep(&formatCtx->pb);
-    avcodec_free_context(&codecCtx);
-    avformat_free_context(formatCtx);
-    opus_decoder_destroy(opusDecoder);
-    numActiveThreads.fetch_sub(1);
-    fclose(evidenceData);
-    return;
-  }
+
+  // Encodes one AAC frame's worth of samples from pcmBuffer starting at pcmReadHead
   int64_t pts = 0;
-
-  // Accumulate decoded S16 samples converted to F32, drained in AAC frame_size (1024) chunks
   size_t pcmReadHead = 0;
-  std::vector<float> pcmBuffer;
-  pcmBuffer.reserve(codecCtx->frame_size * 4);
-
-  // Encodes one full AAC frame starting at pcmReadHead; advances pcmReadHead by samplesToWrite
   auto encodeFrame = [&](int samplesToWrite)
   {
     av_frame_make_writable(aacFrame);
     auto* dst = reinterpret_cast<float*>(aacFrame->data[0]);
-    std::copy(pcmBuffer.begin() + static_cast<ptrdiff_t>(pcmReadHead),
-              pcmBuffer.begin() + static_cast<ptrdiff_t>(pcmReadHead) + samplesToWrite, dst);
+    std::copy(pcmBuffer.begin() + static_cast<ptrdiff_t>(pcmReadHead), pcmBuffer.begin() + static_cast<ptrdiff_t>(pcmReadHead) + samplesToWrite, dst);
     if (samplesToWrite < codecCtx->frame_size) std::fill(dst + samplesToWrite, dst + codecCtx->frame_size, 0.0f);
     pcmReadHead += samplesToWrite;
     aacFrame->pts = pts;
@@ -291,14 +316,10 @@ void EvidenceProcessor::processEvidenceWorker(uint64_t deviceID, uint8_t clipID,
     av_packet_unref(aacPacket);
   }
 
-  // Finalize M4A encoding and clean up resources
+  // Finalize the M4A file and release per-clip resources
   av_write_trailer(formatCtx);
-  av_frame_free(&aacFrame);
-  av_packet_free(&aacPacket);
-  avcodec_free_context(&codecCtx);
   avio_closep(&formatCtx->pb);
   avformat_free_context(formatCtx);
-  opus_decoder_destroy(opusDecoder);
   fclose(evidenceData);
 
   // Store the evidence clip into S3 and update the database record
@@ -308,17 +329,19 @@ void EvidenceProcessor::processEvidenceWorker(uint64_t deviceID, uint8_t clipID,
     std::lock_guard<std::mutex> dbLock(dbMutex);
     const auto evidenceUpdateQuery = std::string("CALL insert_or_update_clip(") + std::to_string(deviceID) + std::string("::int8, ") + std::to_string(clipID) +
                                      std::string("::int2, '") + fileName + std::string("'::varchar);");
-    while (!evidenceDatabase->executeQuery(evidenceUpdateQuery.c_str()) && !evidenceDatabase->isConnected())
+    if (!evidenceDatabase->executeQuery(evidenceUpdateQuery.c_str()))
     {
-      // Attempt to reestablish a lost database connection
       logger.log(Logger::ERROR, "Failed to update evidence database record for Device #%llu, Clip #%u\n", deviceID, clipID);
-      connectToEvidenceDatabase();
+      if (!evidenceDatabase->isConnected())
+      {
+        connectToEvidenceDatabase();
+        evidenceDatabase->executeQuery(evidenceUpdateQuery.c_str());
+      }
     }
   }
   else
     logger.log(Logger::ERROR, "Failed to store clip!\n");
 
-  // Delete the temporary local evidence clip file and decrement the active thread count
+  // Delete the temporary local evidence clip file
   std::filesystem::remove(localFileName);
-  numActiveThreads.fetch_sub(1);
 }
