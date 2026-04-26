@@ -3,7 +3,7 @@
 
 AwsMQTT::AwsMQTT(const char* __restrict clientId, std::string&& caKey, std::string&& clientCertKey, std::string&& clientKeyKey, const char* __restrict endpointUrl,
                  uint32_t endpointPort, uint32_t keepAliveSeconds)
-    : receivedPackets(), mqttClient(nullptr), clientConnected(), clientStopped(), packetReceived(), receiveMutex(), isRunning(false)
+    : receivedPackets(), mqttClient(nullptr), clientConnected(), clientStopped(), packetReceived(), isRunning(false), receiveMutex()
 {
   // Unescape newline characters in PEM strings
   size_t index = 0;

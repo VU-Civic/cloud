@@ -64,14 +64,12 @@ void Logger::enableRotation(const char* __restrict rotationDestination, uint32_t
 void Logger::disableRotation(void)
 {
   // Ensure that log rotation has stopped
-  while (inUse.test_and_set());
   rotationRunning.store(false, std::memory_order_release);
   if (rotationThread.joinable())
   {
     terminateRotation.notify_one();
     rotationThread.join();
   }
-  inUse.clear();
 }
 
 void Logger::rotate(const char* newPath)
@@ -80,7 +78,8 @@ void Logger::rotate(const char* newPath)
   while (inUse.test_and_set());
   fclose(logFile);
   std::filesystem::rename(logPath, newPath);
-  logFile = fopen(logPath.c_str(), "w");
+  FILE* newFile = fopen(logPath.c_str(), "w");
+  logFile = newFile ? newFile : fopen(newPath, "a");
   inUse.clear();
 
   // Ensure that any empty old log files are removed
@@ -93,11 +92,11 @@ void Logger::rotate(const char* newPath)
 void Logger::logRotationWorker(void)
 {
   // Loop forever until termination requested
+  std::mutex sleepMutex;
+  std::unique_lock<std::mutex> lock(sleepMutex);
   while (rotationRunning.load(std::memory_order_acquire))
   {
     // Sleep for the log rotation interval
-    std::mutex sleepMutex;
-    std::unique_lock<std::mutex> lock(sleepMutex);
     terminateRotation.wait_for(lock, std::chrono::seconds(rotationInterval), [this]() { return !rotationRunning.load(std::memory_order_acquire); });
 
     // Rotate the current log file to a new location based on the current timestamp

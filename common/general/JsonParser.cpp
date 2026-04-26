@@ -1,6 +1,5 @@
+#include <cstdio>
 #include <cstring>
-#include <iomanip>
-#include <sstream>
 #include "JsonParser.h"
 
 // Tokenizer JSON characters
@@ -17,57 +16,50 @@ S&& operator<<(S&& out, const T& t)
 
 JsonValue& JsonObject::operator[](const char* key)
 {
-  if (!keyValuePairs.count(key))
-  {
-    insertionOrder.emplace_back(key);
-    keyValuePairs.emplace(key, std::unique_ptr<JsonValue>(new JsonValue()));
-  }
-  return *keyValuePairs[key];
+  auto [it, inserted] = keyValuePairs.try_emplace(key, std::unique_ptr<JsonValue>(new JsonValue()));
+  if (inserted) insertionOrder.emplace_back(key);
+  return *it->second;
 }
 
 JsonValue& JsonObject::operator[](const JsonString& key)
 {
-  if (!keyValuePairs.count(key))
-  {
-    insertionOrder.emplace_back(key);
-    keyValuePairs.emplace(key, std::unique_ptr<JsonValue>(new JsonValue()));
-  }
-  return *keyValuePairs[key];
+  auto [it, inserted] = keyValuePairs.try_emplace(key, std::unique_ptr<JsonValue>(new JsonValue()));
+  if (inserted) insertionOrder.emplace_back(key);
+  return *it->second;
 }
 
 JsonValue& JsonObject::operator[](JsonString&& key)
 {
-  if (!keyValuePairs.count(key))
-  {
-    insertionOrder.emplace_back(key);
-    keyValuePairs.emplace(key, std::unique_ptr<JsonValue>(new JsonValue()));
-  }
-  return *keyValuePairs[std::move(key)];
+  auto [it, inserted] = keyValuePairs.try_emplace(std::move(key), std::unique_ptr<JsonValue>(new JsonValue()));
+  if (inserted) insertionOrder.emplace_back(it->first);
+  return *it->second;
 }
 
 JsonValue& JsonObject::emplace(const char* key, JsonValue&& value)
 {
-  if (!keyValuePairs.count(key)) insertionOrder.emplace_back(key);
-  return *keyValuePairs.emplace(key, std::unique_ptr<JsonValue>(new JsonValue(std::move(value)))).first->second;
+  auto [it, inserted] = keyValuePairs.try_emplace(key, std::unique_ptr<JsonValue>(new JsonValue(std::move(value))));
+  if (inserted) insertionOrder.emplace_back(key);
+  return *it->second;
 }
 
 JsonValue& JsonObject::emplace(const JsonString& key, JsonValue&& value)
 {
-  if (!keyValuePairs.count(key)) insertionOrder.emplace_back(key);
-  return *keyValuePairs.emplace(key, std::unique_ptr<JsonValue>(new JsonValue(std::move(value)))).first->second;
+  auto [it, inserted] = keyValuePairs.try_emplace(key, std::unique_ptr<JsonValue>(new JsonValue(std::move(value))));
+  if (inserted) insertionOrder.emplace_back(key);
+  return *it->second;
 }
 
 JsonValue& JsonObject::emplace(JsonString&& key, JsonValue&& value)
 {
-  if (!keyValuePairs.count(key)) insertionOrder.emplace_back(key);
-  return *keyValuePairs.emplace(std::move(key), std::unique_ptr<JsonValue>(new JsonValue(std::move(value)))).first->second;
+  auto [it, inserted] = keyValuePairs.try_emplace(std::move(key), std::unique_ptr<JsonValue>(new JsonValue(std::move(value))));
+  if (inserted) insertionOrder.emplace_back(it->first);
+  return *it->second;
 }
 
 void JsonObject::remove(const char* key)
 {
-  if (keyValuePairs.count(key))
+  if (keyValuePairs.erase(key))
   {
-    keyValuePairs.erase(key);
     for (auto insertionLocation = std::begin(insertionOrder); insertionLocation != std::end(insertionOrder); ++insertionLocation)
       if (insertionLocation->compare(key) == 0)
       {
@@ -79,9 +71,8 @@ void JsonObject::remove(const char* key)
 
 void JsonObject::remove(const JsonString& key)
 {
-  if (keyValuePairs.count(key))
+  if (keyValuePairs.erase(key))
   {
-    keyValuePairs.erase(key);
     for (auto insertionLocation = std::begin(insertionOrder); insertionLocation != std::end(insertionOrder); ++insertionLocation)
       if (insertionLocation->compare(key) == 0)
       {
@@ -241,9 +232,9 @@ std::string JsonValue::asString(bool prettyPrint, bool stringifyAllValues) const
       return (booleanValue ? "true" : "false");
     case JsonValueType::Float:
     {
-      std::ostringstream ss;
-      ss << std::setprecision(15) << floatValue;
-      return ss.str();
+      char buf[32];
+      snprintf(buf, sizeof(buf), "%.15g", floatValue);
+      return buf;
     }
     case JsonValueType::Integer:
       return std::to_string(integerValue);
@@ -383,9 +374,9 @@ std::vector<std::string> JsonValue::asStringArray(bool prettyPrint, bool stringi
       return std::vector<std::string>{(booleanValue ? "true" : "false")};
     case JsonValueType::Float:
     {
-      std::ostringstream ss;
-      ss << std::setprecision(15) << floatValue;
-      return std::vector<std::string>{ss.str()};
+      char buf[32];
+      snprintf(buf, sizeof(buf), "%.15g", floatValue);
+      return std::vector<std::string>{buf};
     }
     case JsonValueType::Integer:
       return std::vector<std::string>{std::to_string(integerValue)};

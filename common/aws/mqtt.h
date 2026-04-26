@@ -1,6 +1,7 @@
 #ifndef __AWS_MQTT_HEADER_H__
 #define __AWS_MQTT_HEADER_H__
 
+#include <atomic>
 #include <deque>
 #include <future>
 #include <vector>
@@ -39,7 +40,7 @@ private:
   std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> mqttClient;
   std::promise<bool> clientConnected, clientStopped;
   std::condition_variable packetReceived;
+  std::atomic<bool> isRunning;
   std::mutex receiveMutex;
-  bool isRunning;
 };
 #endif  // #ifndef __AWS_MQTT_HEADER_H__

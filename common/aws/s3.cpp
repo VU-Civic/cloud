@@ -114,17 +114,16 @@ bool AwsS3::downloadFile(const char* __restrict s3FileName, uint8_t* __restrict 
   getObjectRequest.SetBucket(bucketName.c_str());
   getObjectRequest.SetKey(s3FileName);
   getObjectRequest.SetResponseStreamFactory(
-      [&]
-      {
-        Aws::StringStream* binaryStream(Aws::New<Aws::StringStream>("S3FileDownloader", std::stringstream::in | std::stringstream::out | std::stringstream::binary));
-        binaryStream->rdbuf()->pubsetbuf(reinterpret_cast<char*>(outputData), static_cast<std::streamsize>(outputDataLength));
-        return binaryStream;
-      });
-  const auto getObjectOutcome = s3Client->GetObject(getObjectRequest);
+      [] { return Aws::New<Aws::StringStream>("S3FileDownloader", std::stringstream::in | std::stringstream::out | std::stringstream::binary); });
+  auto getObjectOutcome = s3Client->GetObject(getObjectRequest);
   if (!getObjectOutcome.IsSuccess())
+  {
     logger.log(Logger::ERROR, "AWS S3: GetObject failed on Bucket '%s' for file '%s' with error: %s\n", bucketName.c_str(), s3FileName,
                getObjectOutcome.GetError().GetMessage().c_str());
-  return getObjectOutcome.IsSuccess();
+    return false;
+  }
+  getObjectOutcome.GetResult().GetBody().read(reinterpret_cast<char*>(outputData), static_cast<std::streamsize>(outputDataLength));
+  return true;
 }
 
 size_t AwsS3::getFileSize(const char* __restrict s3FileName)
