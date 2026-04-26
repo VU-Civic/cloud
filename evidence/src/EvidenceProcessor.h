@@ -48,9 +48,6 @@ private:
   static void processClip(uint64_t deviceID, uint8_t clipID, const std::vector<uint8_t>& rawEvidence, OpusDecoder* opusDecoder, AVCodecContext* codecCtx, AVFrame* aacFrame,
                           AVPacket* aacPacket, std::vector<float>& pcmBuffer);
 
-  // Number of persistent worker threads
-  static constexpr int NUM_WORKER_THREADS = 2;
-
   // Private member variables
   static int referenceCount;
   static std::atomic_bool workersShouldStop;

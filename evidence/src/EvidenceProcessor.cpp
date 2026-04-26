@@ -1,6 +1,7 @@
 #include <ctime>
 #include <filesystem>
 #include <opus/opus.h>
+#include <unistd.h>
 #include "Common.h"
 #include "AwsServices.h"
 #include "EvidenceProcessor.h"
@@ -55,10 +56,11 @@ void EvidenceProcessor::initialize(void)
   // Establish a connection to the evidence database
   connectToEvidenceDatabase();
 
-  // Start the worker thread pool
+  // Start the worker thread pool with one thread per CPU core
+  const size_t num_cpus = sysconf(_SC_NPROCESSORS_ONLN);
   workersShouldStop.store(false);
-  workerThreads.reserve(NUM_WORKER_THREADS);
-  for (int i = 0; i < NUM_WORKER_THREADS; ++i) workerThreads.emplace_back(&EvidenceProcessor::workerThread);
+  workerThreads.reserve(num_cpus);
+  for (size_t i = 0; i < num_cpus; ++i) workerThreads.emplace_back(&EvidenceProcessor::workerThread);
 }
 
 void EvidenceProcessor::cleanup(void)
