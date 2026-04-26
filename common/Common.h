@@ -171,7 +171,7 @@ namespace CivicAlert
 
   // Evidence processing parameters
   constexpr const uint8_t EVIDENCE_OPUS_FRAME_DELIMITER = 0xAA;
-  constexpr const char* EVIDENCE_CLIP_FILE_EXTENSION = ".ogg";
+  constexpr const char* EVIDENCE_CLIP_FILE_EXTENSION = ".m4a";
   constexpr const int EVIDENCE_AUDIO_SAMPLE_RATE_HZ = 48000;
   constexpr const int EVIDENCE_AUDIO_NUM_CHANNELS = 1;
   constexpr const int EVIDENCE_AUDIO_BITRATE_BPS = 16000;

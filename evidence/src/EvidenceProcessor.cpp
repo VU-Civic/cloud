@@ -1,14 +1,22 @@
 #include <ctime>
 #include <filesystem>
 #include <thread>
-#include <opus/opusenc.h>
+#include <opus/opus.h>
 #include "Common.h"
 #include "AwsServices.h"
 #include "EvidenceProcessor.h"
 
+extern "C"
+{
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavutil/channel_layout.h>
+#include <libavutil/frame.h>
+}
+
 int EvidenceProcessor::referenceCount = 0;
-std::mutex EvidenceProcessor::initializationMutex;
 std::atomic_uint32_t EvidenceProcessor::numActiveThreads{0};
+std::mutex EvidenceProcessor::initializationMutex, EvidenceProcessor::dbMutex;
 std::unique_ptr<PostgreSQL> EvidenceProcessor::evidenceDatabase;
 
 void EvidenceProcessor::connectToEvidenceDatabase(void)
@@ -119,30 +127,134 @@ void EvidenceProcessor::processEvidenceWorker(uint64_t deviceID, uint8_t clipID,
     return;
   }
 
-  // Create an Ogg Opus encoder for writing the full evidence clip
+  // Create an M4A (AAC in MP4 container) encoder for writing the full evidence clip
+  AVFormatContext* formatCtx = nullptr;
   const auto fileName = std::to_string(deviceID) + "_" + std::to_string(time(nullptr)) + CivicAlert::EVIDENCE_CLIP_FILE_EXTENSION;
   const auto localFileName = "/tmp/" + fileName;
-  auto* comments = ope_comments_create();
-  auto* oggEncoder = ope_encoder_create_file(localFileName.c_str(), comments, CivicAlert::EVIDENCE_AUDIO_SAMPLE_RATE_HZ, CivicAlert::EVIDENCE_AUDIO_NUM_CHANNELS, 0, &error);
-  if (comments && oggEncoder)
+  if (avformat_alloc_output_context2(&formatCtx, nullptr, "mp4", localFileName.c_str()) < 0 || !formatCtx)
   {
-    ope_comments_add(comments, "ARTIST", "CivicAlert");
-    ope_comments_add(comments, "TITLE", "Evidence Clip");
-  }
-  else
-  {
-    logger.log(Logger::ERROR, "Failed to create an Ogg Opus encoder: %s\n", opus_strerror(error));
+    logger.log(Logger::ERROR, "Failed to allocate M4A output context for Device #%llu, Clip #%u\n", deviceID, clipID);
+    opus_decoder_destroy(opusDecoder);
     numActiveThreads.fetch_sub(1);
-    if (oggEncoder) ope_encoder_destroy(oggEncoder);
-    if (comments) ope_comments_destroy(comments);
     fclose(evidenceData);
     return;
   }
-  ope_encoder_ctl(oggEncoder, OPUS_SET_APPLICATION_REQUEST, OPUS_APPLICATION_RESTRICTED_LOWDELAY);
-  ope_encoder_ctl(oggEncoder, OPUS_SET_BITRATE_REQUEST, CivicAlert::EVIDENCE_AUDIO_BITRATE_BPS);
-  ope_encoder_ctl(oggEncoder, OPUS_SET_SIGNAL_REQUEST, OPUS_SIGNAL_MUSIC);
-  ope_encoder_ctl(oggEncoder, OPUS_SET_COMPLEXITY_REQUEST, 0);
-  ope_encoder_ctl(oggEncoder, OPUS_SET_VBR_REQUEST, 1);
+  const AVCodec* aacCodec = avcodec_find_encoder(AV_CODEC_ID_AAC);
+  if (!aacCodec)
+  {
+    logger.log(Logger::ERROR, "AAC encoder not found\n");
+    avformat_free_context(formatCtx);
+    opus_decoder_destroy(opusDecoder);
+    numActiveThreads.fetch_sub(1);
+    fclose(evidenceData);
+    return;
+  }
+  AVCodecContext* codecCtx = avcodec_alloc_context3(aacCodec);
+  if (!codecCtx)
+  {
+    logger.log(Logger::ERROR, "Failed to allocate AAC codec context\n");
+    avformat_free_context(formatCtx);
+    opus_decoder_destroy(opusDecoder);
+    numActiveThreads.fetch_sub(1);
+    fclose(evidenceData);
+    return;
+  }
+  codecCtx->sample_rate = CivicAlert::EVIDENCE_AUDIO_SAMPLE_RATE_HZ;
+  codecCtx->sample_fmt = AV_SAMPLE_FMT_FLTP;
+  codecCtx->bit_rate = CivicAlert::EVIDENCE_AUDIO_BITRATE_BPS;
+  codecCtx->ch_layout = AV_CHANNEL_LAYOUT_MONO;
+  if (avcodec_open2(codecCtx, aacCodec, nullptr) < 0)
+  {
+    logger.log(Logger::ERROR, "Failed to open AAC encoder\n");
+    avcodec_free_context(&codecCtx);
+    avformat_free_context(formatCtx);
+    opus_decoder_destroy(opusDecoder);
+    numActiveThreads.fetch_sub(1);
+    fclose(evidenceData);
+    return;
+  }
+  AVStream* stream = avformat_new_stream(formatCtx, nullptr);
+  if (!stream)
+  {
+    logger.log(Logger::ERROR, "Failed to create audio stream\n");
+    avcodec_free_context(&codecCtx);
+    avformat_free_context(formatCtx);
+    opus_decoder_destroy(opusDecoder);
+    numActiveThreads.fetch_sub(1);
+    fclose(evidenceData);
+    return;
+  }
+  avcodec_parameters_from_context(stream->codecpar, codecCtx);
+  stream->time_base = {1, CivicAlert::EVIDENCE_AUDIO_SAMPLE_RATE_HZ};
+  if (avio_open(&formatCtx->pb, localFileName.c_str(), AVIO_FLAG_WRITE) < 0 || avformat_write_header(formatCtx, nullptr) < 0)
+  {
+    logger.log(Logger::ERROR, "Failed to open output file or write M4A header for Device #%llu\n", deviceID);
+    avio_closep(&formatCtx->pb);
+    avcodec_free_context(&codecCtx);
+    avformat_free_context(formatCtx);
+    opus_decoder_destroy(opusDecoder);
+    numActiveThreads.fetch_sub(1);
+    fclose(evidenceData);
+    return;
+  }
+  AVFrame* aacFrame = av_frame_alloc();
+  AVPacket* aacPacket = av_packet_alloc();
+  if (!aacFrame || !aacPacket)
+  {
+    logger.log(Logger::ERROR, "Failed to allocate AAC frame or packet\n");
+    if (aacFrame) av_frame_free(&aacFrame);
+    if (aacPacket) av_packet_free(&aacPacket);
+    avio_closep(&formatCtx->pb);
+    avcodec_free_context(&codecCtx);
+    avformat_free_context(formatCtx);
+    opus_decoder_destroy(opusDecoder);
+    numActiveThreads.fetch_sub(1);
+    fclose(evidenceData);
+    return;
+  }
+  aacFrame->nb_samples = codecCtx->frame_size;
+  aacFrame->format = codecCtx->sample_fmt;
+  av_channel_layout_copy(&aacFrame->ch_layout, &codecCtx->ch_layout);
+  if (av_frame_get_buffer(aacFrame, 0) < 0)
+  {
+    logger.log(Logger::ERROR, "Failed to allocate AAC frame buffer\n");
+    av_frame_free(&aacFrame);
+    av_packet_free(&aacPacket);
+    avio_closep(&formatCtx->pb);
+    avcodec_free_context(&codecCtx);
+    avformat_free_context(formatCtx);
+    opus_decoder_destroy(opusDecoder);
+    numActiveThreads.fetch_sub(1);
+    fclose(evidenceData);
+    return;
+  }
+  int64_t pts = 0;
+
+  // Accumulate decoded S16 samples converted to F32, drained in AAC frame_size (1024) chunks
+  size_t pcmReadHead = 0;
+  std::vector<float> pcmBuffer;
+  pcmBuffer.reserve(codecCtx->frame_size * 4);
+
+  // Encodes one full AAC frame starting at pcmReadHead; advances pcmReadHead by samplesToWrite
+  auto encodeFrame = [&](int samplesToWrite)
+  {
+    av_frame_make_writable(aacFrame);
+    auto* dst = reinterpret_cast<float*>(aacFrame->data[0]);
+    std::copy(pcmBuffer.begin() + static_cast<ptrdiff_t>(pcmReadHead),
+              pcmBuffer.begin() + static_cast<ptrdiff_t>(pcmReadHead) + samplesToWrite, dst);
+    if (samplesToWrite < codecCtx->frame_size) std::fill(dst + samplesToWrite, dst + codecCtx->frame_size, 0.0f);
+    pcmReadHead += samplesToWrite;
+    aacFrame->pts = pts;
+    pts += codecCtx->frame_size;
+    if (avcodec_send_frame(codecCtx, aacFrame) == 0)
+      while (avcodec_receive_packet(codecCtx, aacPacket) == 0)
+      {
+        av_packet_rescale_ts(aacPacket, codecCtx->time_base, stream->time_base);
+        aacPacket->stream_index = stream->index;
+        av_interleaved_write_frame(formatCtx, aacPacket);
+        av_packet_unref(aacPacket);
+      }
+  };
 
   // Process the audio data in frames
   constexpr const size_t frameHeaderSize = offsetof(EvidenceOpusFrame, encodedData);
@@ -154,31 +266,52 @@ void EvidenceProcessor::processEvidenceWorker(uint64_t deviceID, uint8_t clipID,
     if (samplesRead != evidenceFrame.numEncodedBytes) break;
     logger.log(Logger::DEBUG, "Processing data frame of size %zu for Device #%llu\n", samplesRead, deviceID);
 
-    // Decode the audio frame and re-encode it as Ogg in the output file
+    // Decode the Opus frame to S16 PCM and convert to F32, accumulating in the buffer
     const unsigned char* dataPtr = evidenceFrame.numEncodedBytes ? evidenceFrame.encodedData : nullptr;
     auto numDecodedSamples = opus_decode(opusDecoder, dataPtr, evidenceFrame.numEncodedBytes, decodedPacket, CivicAlert::EVIDENCE_DECODED_FRAME_SAMPLES, 0);
-    ope_encoder_write(oggEncoder, decodedPacket, numDecodedSamples);
+    for (int i = 0; i < numDecodedSamples; ++i) pcmBuffer.push_back(decodedPacket[i] / 32768.0f);
+
+    // Drain full AAC frames from the buffer, then compact the consumed entries
+    while (static_cast<int>(pcmBuffer.size() - pcmReadHead) >= codecCtx->frame_size) encodeFrame(codecCtx->frame_size);
+    pcmBuffer.erase(pcmBuffer.begin(), pcmBuffer.begin() + static_cast<ptrdiff_t>(pcmReadHead));
+    pcmReadHead = 0;
 
     // Read the next frame header
     samplesRead = fread(&evidenceFrame, 1, frameHeaderSize, evidenceData);
   }
 
-  // Finalize Ogg Opus encoding and clean up the resources
-  ope_encoder_drain(oggEncoder);
-  ope_encoder_destroy(oggEncoder);
-  ope_comments_destroy(comments);
+  // Encode any remaining samples (zero-padded to a full AAC frame) then flush the encoder
+  if (!pcmBuffer.empty()) encodeFrame(static_cast<int>(pcmBuffer.size()));
+  avcodec_send_frame(codecCtx, nullptr);
+  while (avcodec_receive_packet(codecCtx, aacPacket) == 0)
+  {
+    av_packet_rescale_ts(aacPacket, codecCtx->time_base, stream->time_base);
+    aacPacket->stream_index = stream->index;
+    av_interleaved_write_frame(formatCtx, aacPacket);
+    av_packet_unref(aacPacket);
+  }
+
+  // Finalize M4A encoding and clean up resources
+  av_write_trailer(formatCtx);
+  av_frame_free(&aacFrame);
+  av_packet_free(&aacPacket);
+  avcodec_free_context(&codecCtx);
+  avio_closep(&formatCtx->pb);
+  avformat_free_context(formatCtx);
+  opus_decoder_destroy(opusDecoder);
   fclose(evidenceData);
 
   // Store the evidence clip into S3 and update the database record
   logger.log(Logger::INFO, "Storing evidence clip to AWS S3 as %s\n", fileName.c_str());
   if (AwsServices::storeEvidenceClipToS3(fileName.c_str(), localFileName.c_str()))
   {
+    std::lock_guard<std::mutex> dbLock(dbMutex);
     const auto evidenceUpdateQuery = std::string("CALL insert_or_update_clip(") + std::to_string(deviceID) + std::string("::int8, ") + std::to_string(clipID) +
                                      std::string("::int2, '") + fileName + std::string("'::varchar);");
     while (!evidenceDatabase->executeQuery(evidenceUpdateQuery.c_str()) && !evidenceDatabase->isConnected())
     {
       // Attempt to reestablish a lost database connection
-      logger.log(Logger::ERROR, "Failed to update evidence database record for Device #%lu, Clip #%u\n", deviceID, clipID);
+      logger.log(Logger::ERROR, "Failed to update evidence database record for Device #%llu, Clip #%u\n", deviceID, clipID);
       connectToEvidenceDatabase();
     }
   }
